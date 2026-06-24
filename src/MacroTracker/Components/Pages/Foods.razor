@@ -36,8 +36,16 @@
                 <table class="table table-striped table-hover">
                     <thead>
                         <tr>
-                            <th>Naam</th>
-                            <th>Merk</th>
+                            <th>
+                                <button type="button" class="btn btn-link p-0 text-decoration-none" @onclick="() => SortBy(SortColumn.Name)">
+                                    Naam <span class="ms-1">@((MarkupString)GetSortIcon(SortColumn.Name))</span>
+                                </button>
+                            </th>
+                            <th>
+                                <button type="button" class="btn btn-link p-0 text-decoration-none" @onclick="() => SortBy(SortColumn.Brand)">
+                                    Merk <span class="ms-1">@((MarkupString)GetSortIcon(SortColumn.Brand))</span>
+                                </button>
+                            </th>
                             <th>Eenheid</th>
                             <th>Energie (kcal)</th>
                             <th>Koolhydraten</th>
@@ -154,6 +162,8 @@
     private bool showForm = false;
     private FoodItem editingFood = new();
     private string searchTerm = "";
+    private SortColumn sortColumn = SortColumn.Name;
+    private bool sortAscending = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -163,7 +173,7 @@
     private async Task LoadFoods()
     {
         foods = await FoodService.GetAllAsync();
-        filteredFoods = foods;
+        ApplyFiltersAndSorting();
     }
 
     private void ShowAddForm()
@@ -244,11 +254,59 @@
     private void OnSearchChanged(ChangeEventArgs e)
     {
         searchTerm = (string?)e.Value ?? "";
+        ApplyFiltersAndSorting();
+    }
+
+    private void SortBy(SortColumn column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+
+        ApplyFiltersAndSorting();
+    }
+
+    private string GetSortIcon(SortColumn column)
+    {
+        if (sortColumn != column)
+        {
+            return "&harr;";
+        }
+
+        return sortAscending ? "&uarr;" : "&darr;";
+    }
+
+    private void ApplyFiltersAndSorting()
+    {
         var lowerSearch = searchTerm.ToLower();
-        filteredFoods = foods.Where(f =>
+
+        IEnumerable<FoodItem> query = foods.Where(f =>
             (f.Name?.ToLower().Contains(lowerSearch) ?? false) ||
             (f.Brand?.ToLower().Contains(lowerSearch) ?? false)
-        ).ToList();
+        );
+
+        query = (sortColumn, sortAscending) switch
+        {
+            (SortColumn.Name, true) => query.OrderBy(f => f.Name),
+            (SortColumn.Name, false) => query.OrderByDescending(f => f.Name),
+            (SortColumn.Brand, true) => query.OrderBy(f => f.Brand ?? string.Empty).ThenBy(f => f.Name),
+            (SortColumn.Brand, false) => query.OrderByDescending(f => f.Brand ?? string.Empty).ThenBy(f => f.Name),
+            _ => query
+        };
+
+        filteredFoods = query.ToList();
+    }
+
+    private enum SortColumn
+    {
+        Name,
+        Brand
     }
 
     [Inject] IJSRuntime? JSRuntime { get; set; }

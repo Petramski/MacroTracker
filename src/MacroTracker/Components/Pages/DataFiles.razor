@@ -22,9 +22,17 @@
             <p>
                 <strong>App_Data-map:</strong>
             </p>
-            <p style="word-break: break-all; font-family: monospace; background-color: #f5f5f5; padding: 10px; border-radius: 4px;">
-                @GetAppDataPath()
-            </p>
+            <div class="input-group">
+                <input class="form-control" type="text" value="@GetAppDataPath()" readonly style="font-family: monospace;" />
+            </div>
+            <div class="d-flex align-items-center gap-2 mt-2">
+                <small class="text-muted">Exporteer of importeer alle JSON-data als een .zip-bestand.</small>
+            </div>
+            <form action="/api/data-files/import" method="post" enctype="multipart/form-data" class="mt-2 d-flex gap-2 align-items-center">
+                <input id="zipFileInput" class="d-none" type="file" name="zipFile" accept=".zip" required onchange="this.form.submit();" />
+                <a class="btn btn-outline-primary" href="/api/data-files/export">Exporteren</a>
+                <button class="btn btn-outline-primary" type="button" onclick="document.getElementById('zipFileInput').click();">Importeren</button>
+            </form>
         </div>
     </div>
 
