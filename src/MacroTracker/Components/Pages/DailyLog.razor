@@ -1,0 +1,466 @@
+@page "/daily-log"
+@inject DailyLogService DailyLogService
+@inject MeasurementService MeasurementService
+@inject PersonalDataService PersonalDataService
+@inject FoodService FoodService
+@inject RecipeService RecipeService
+@inject MacroCalculator MacroCalculator
+@using MacroTracker.Models
+
+<PageTitle>Daglogboek - MacroTracker</PageTitle>
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Daglogboek</h1>
+        </div>
+        <div class="col text-end">
+            <button class="btn btn-primary" @onclick="ShowAddForm">Invoer toevoegen</button>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div style="width: 140px;">
+            <label class="form-label">Selecteer datum</label>
+            <input type="date" class="form-control form-control-sm" value="@selectedDate.ToString("yyyy-MM-dd")" @onchange="OnDateChanged" />
+        </div>
+        <div class="col-auto d-flex align-items-end">
+            <button class="btn btn-outline-secondary btn-sm" @onclick="GoToToday">vandaag</button>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Lichaamsmetingen</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Gewicht (kg)</label>
+                    <input type="number" class="form-control" @bind="dailyMeasurement.WeightKg" @bind:after="SaveMeasurement" step="0.1" min="0" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Tailleomtrek (cm)</label>
+                    <input type="number" class="form-control" @bind="dailyMeasurement.WaistCm" @bind:after="SaveMeasurement" step="0.1" min="0" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (entries == null || foods == null || recipes == null)
+    {
+        <p><em>Laden...</em></p>
+    }
+    else
+    {
+        <div class="row mb-4">
+            <div class="col-md-2">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title">Energie</h6>
+                        <h3>@MacroCalculator.FormatCalories(dayTotals.Calories) kcal</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title">Koolhydraten</h6>
+                        <h3>@MacroCalculator.FormatMacro(dayTotals.Carbs)g</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title">Eiwit</h6>
+                        <h3>@MacroCalculator.FormatMacro(dayTotals.Protein)g</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title">Vet</h6>
+                        <h3>@MacroCalculator.FormatMacro(dayTotals.Fat)g</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title">BMI</h6>
+                        <h3>@GetBmiDisplay()</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title">Taille/lengte</h6>
+                        <h3>@GetHeightToWaistRatioDisplay()</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (entries.Count == 0)
+        {
+            <p class="text-muted">Geen invoer voor deze datum.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Maaltijd</th>
+                            <th>Hoeveelheid</th>
+                            <th>Energie (kcal)</th>
+                            <th>Koolhydraten</th>
+                            <th>Eiwit</th>
+                            <th>Vet</th>
+                            <th>Notities</th>
+                            <th>Acties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entry in entries)
+                        {
+                            var itemName = entry.FoodReferenceType == FoodReferenceType.Food
+                                ? (foods.FirstOrDefault(f => f.Id == entry.FoodItemId)?.Name ?? "Onbekend")
+                                : (recipes.FirstOrDefault(r => r.Id == entry.RecipeId)?.Name ?? "Onbekend");
+                            var macros = GetEntryMacros(entry);
+                            var unitDisplay = MacroCalculator.GetUnitDisplayName(entry.Unit);
+
+                            <tr>
+                                <td>@itemName</td>
+                                <td>@(entry.Meal ?? "-")</td>
+                                <td>@entry.Amount @unitDisplay</td>
+                                <td>@MacroCalculator.FormatCalories(macros.Calories) kcal</td>
+                                <td>@MacroCalculator.FormatMacro(macros.Carbs)</td>
+                                <td>@MacroCalculator.FormatMacro(macros.Protein)</td>
+                                <td>@MacroCalculator.FormatMacro(macros.Fat)</td>
+                                <td>
+                                    <small>@(entry.Notes ?? "-")</small>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-warning" @onclick="() => EditEntry(entry)">Bewerken</button>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => DeleteEntry(entry.Id)">Verwijderen</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+
+    @if (showForm)
+    {
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5>@(editingEntry?.Id == Guid.Empty ? "Invoer toevoegen" : "Invoer bewerken")</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Type voedingsmiddel/recept *</label>
+                        <select class="form-control" @onchange="OnTypeChanged">
+                            <option value="">-- Kies type --</option>
+                            <option value="Food">Voedingsmiddel</option>
+                            <option value="Recipe">Recept</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">@(editingEntry!.FoodReferenceType == FoodReferenceType.Food ? "Voedingsmiddel" : "Recept") *</label>
+                        <select class="form-control" @onchange="OnItemSelected">
+                            <option value="">-- Kies --</option>
+                            @if (editingEntry.FoodReferenceType == FoodReferenceType.Food)
+                            {
+                                @foreach (var food in foods ?? new())
+                                {
+                                    <option value="@food.Id">@food.Name</option>
+                                }
+                            }
+                            else if (editingEntry.FoodReferenceType == FoodReferenceType.Recipe)
+                            {
+                                @foreach (var recipe in recipes ?? new())
+                                {
+                                    <option value="@recipe.Id">@recipe.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Hoeveelheid *</label>
+                        <input type="number" class="form-control" @bind="editingEntry.Amount" step="0.1" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Eenheid *</label>
+                        <select class="form-control" @bind="editingEntry.Unit">
+                            @if (editingEntry.FoodReferenceType == FoodReferenceType.Food && editingEntry.FoodItemId.HasValue)
+                            {
+                                var food = foods?.FirstOrDefault(f => f.Id == editingEntry.FoodItemId.Value);
+                                @foreach (FoodUnit unit in Enum.GetValues(typeof(FoodUnit)))
+                                {
+                                    <option value="@unit">@MacroCalculator.GetUnitDisplayName(unit)</option>
+                                }
+                            }
+                            else if (editingEntry.FoodReferenceType == FoodReferenceType.Recipe && editingEntry.RecipeId.HasValue)
+                            {
+                                @foreach (FoodUnit unit in Enum.GetValues(typeof(FoodUnit)))
+                                {
+                                    <option value="@unit">@MacroCalculator.GetUnitDisplayName(unit)</option>
+                                }
+                            }
+                            else
+                            {
+                                <option value="Grams">g</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Maaltijd</label>
+                        <select class="form-control" @bind="editingEntry.Meal">
+                            <option value="">-- Overig --</option>
+                            <option value="Breakfast">Ontbijt</option>
+                            <option value="Lunch">Lunch</option>
+                            <option value="Dinner">Avondeten</option>
+                            <option value="Snack">Tussendoortje</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Notities</label>
+                        <input type="text" class="form-control" @bind="editingEntry.Notes" />
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <button class="btn btn-success" @onclick="SaveEntry">Opslaan</button>
+                    <button class="btn btn-secondary" @onclick="HideForm">Annuleren</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private DateOnly selectedDate;
+    private List<DailyLogEntry> entries = new();
+    private List<FoodItem> foods = new();
+    private List<Recipe> recipes = new();
+    private MacroTotals dayTotals = new();
+    private bool showForm = false;
+    private DailyLogEntry editingEntry = new();
+    private DailyMeasurement dailyMeasurement = new();
+    private PersonalData personalData = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        selectedDate = DateOnly.FromDateTime(DateTime.Today);
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        foods = await FoodService.GetAllAsync();
+        recipes = await RecipeService.GetAllAsync();
+        entries = await DailyLogService.GetByDateAsync(selectedDate);
+        personalData = await PersonalDataService.GetAsync();
+        var existingMeasurement = await MeasurementService.GetByDateAsync(selectedDate);
+        if (existingMeasurement == null)
+        {
+            dailyMeasurement = new DailyMeasurement { Date = selectedDate };
+        }
+        else
+        {
+            dailyMeasurement = new DailyMeasurement
+            {
+                Id = existingMeasurement.Id,
+                Date = existingMeasurement.Date,
+                WeightKg = existingMeasurement.WeightKg,
+                WaistCm = existingMeasurement.WaistCm,
+                CreatedAt = existingMeasurement.CreatedAt,
+                UpdatedAt = existingMeasurement.UpdatedAt
+            };
+        }
+
+        dayTotals = new MacroTotals();
+        foreach (var entry in entries)
+        {
+            var macros = GetEntryMacros(entry);
+            dayTotals.Calories += macros.Calories;
+            dayTotals.Carbs += macros.Carbs;
+            dayTotals.Protein += macros.Protein;
+            dayTotals.Fat += macros.Fat;
+        }
+    }
+
+    private void ShowAddForm()
+    {
+        editingEntry = new DailyLogEntry { Id = Guid.Empty, Date = selectedDate, Unit = FoodUnit.Grams };
+        showForm = true;
+        StateHasChanged();
+    }
+
+    private void EditEntry(DailyLogEntry entry)
+    {
+        editingEntry = new DailyLogEntry
+        {
+            Id = entry.Id,
+            Date = entry.Date,
+            FoodReferenceType = entry.FoodReferenceType,
+            FoodItemId = entry.FoodItemId,
+            RecipeId = entry.RecipeId,
+            Amount = entry.Amount,
+            Unit = entry.Unit,
+            Meal = entry.Meal,
+            Notes = entry.Notes
+        };
+        showForm = true;
+        StateHasChanged();
+    }
+
+    private async Task SaveEntry()
+    {
+        if (editingEntry.Amount <= 0 || 
+            (editingEntry.FoodReferenceType == FoodReferenceType.Food && !editingEntry.FoodItemId.HasValue) ||
+            (editingEntry.FoodReferenceType == FoodReferenceType.Recipe && !editingEntry.RecipeId.HasValue))
+        {
+            return;
+        }
+
+        if (editingEntry.Id == Guid.Empty)
+        {
+            await DailyLogService.AddAsync(editingEntry);
+        }
+        else
+        {
+            await DailyLogService.UpdateAsync(editingEntry);
+        }
+
+        await LoadData();
+        HideForm();
+    }
+
+    private async Task DeleteEntry(Guid entryId)
+    {
+        await DailyLogService.DeleteAsync(entryId);
+        await LoadData();
+    }
+
+    private void HideForm()
+    {
+        showForm = false;
+        editingEntry = new();
+        StateHasChanged();
+    }
+
+    private async Task OnDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse((string?)e.Value, out var date))
+        {
+            selectedDate = DateOnly.FromDateTime(date);
+            await LoadData();
+        }
+    }
+
+    private async Task GoToToday()
+    {
+        selectedDate = DateOnly.FromDateTime(DateTime.Today);
+        await LoadData();
+    }
+
+    private async Task SaveMeasurement()
+    {
+        if (dailyMeasurement.WeightKg <= 0 && dailyMeasurement.WaistCm <= 0)
+        {
+            return;
+        }
+
+        dailyMeasurement.Date = selectedDate;
+        await MeasurementService.UpsertByDateAsync(dailyMeasurement);
+    }
+
+    private string GetBmiDisplay()
+    {
+        if (personalData.HeightCm <= 0 || dailyMeasurement.WeightKg <= 0)
+        {
+            return "-";
+        }
+
+        var heightMeters = personalData.HeightCm / 100m;
+        var bmi = dailyMeasurement.WeightKg / (heightMeters * heightMeters);
+        return $"{bmi:0.00}";
+    }
+
+    private string GetHeightToWaistRatioDisplay()
+    {
+        if (personalData.HeightCm <= 0 || dailyMeasurement.WaistCm <= 0)
+        {
+            return "-";
+        }
+
+        var ratio = dailyMeasurement.WaistCm / personalData.HeightCm;
+        return $"{ratio:0.00}";
+    }
+
+    private void OnTypeChanged(ChangeEventArgs e)
+    {
+        var value = (string?)e.Value;
+        if (value == "Food")
+        {
+            editingEntry.FoodReferenceType = FoodReferenceType.Food;
+            editingEntry.RecipeId = null;
+        }
+        else if (value == "Recipe")
+        {
+            editingEntry.FoodReferenceType = FoodReferenceType.Recipe;
+            editingEntry.FoodItemId = null;
+        }
+    }
+
+    private void OnItemSelected(ChangeEventArgs e)
+    {
+        var value = (string?)e.Value;
+        if (Guid.TryParse(value, out var guid))
+        {
+            if (editingEntry.FoodReferenceType == FoodReferenceType.Food)
+            {
+                editingEntry.FoodItemId = guid;
+                var food = foods?.FirstOrDefault(f => f.Id == guid);
+                if (food != null)
+                {
+                    editingEntry.Unit = food.Unit;
+                }
+            }
+            else
+            {
+                editingEntry.RecipeId = guid;
+                var recipe = recipes?.FirstOrDefault(r => r.Id == guid);
+                if (recipe != null)
+                {
+                    editingEntry.Unit = recipe.Unit;
+                }
+            }
+        }
+    }
+
+    private MacroTotals GetEntryMacros(DailyLogEntry entry)
+    {
+        if (entry.FoodReferenceType == FoodReferenceType.Food && entry.FoodItemId.HasValue)
+        {
+            var food = foods?.FirstOrDefault(f => f.Id == entry.FoodItemId.Value);
+            if (food != null)
+            {
+                return MacroCalculator.CalculateFromFood(food, entry.Amount, entry.Unit);
+            }
+        }
+        return new MacroTotals();
+    }
+}

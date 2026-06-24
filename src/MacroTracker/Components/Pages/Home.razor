@@ -1,0 +1,213 @@
+﻿@page "/"
+@inject DailyLogService DailyLogService
+@inject MeasurementService MeasurementService
+@inject PersonalDataService PersonalDataService
+@inject FoodService FoodService
+@inject RecipeService RecipeService
+@inject MacroCalculator MacroCalculator
+
+<PageTitle>Vandaag - MacroTracker</PageTitle>
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Overzicht van vandaag</h1>
+            <p class="text-muted">@DateTime.Now.ToString("dddd, MMMM d, yyyy")</p>
+        </div>
+    </div>
+
+    @if (todayEntries == null)
+    {
+        <p><em>Laden...</em></p>
+    }
+    else
+    {
+        <div class="row mb-4">
+            <div class="col-md-2">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Energie</h5>
+                        <h2>@MacroCalculator.FormatCalories(todayTotals.Calories) kcal</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Koolhydraten</h5>
+                        <h2>@MacroCalculator.FormatMacro(todayTotals.Carbs)g</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Eiwit</h5>
+                        <h2>@MacroCalculator.FormatMacro(todayTotals.Protein)g</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Vet</h5>
+                        <h2>@MacroCalculator.FormatMacro(todayTotals.Fat)g</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">BMI</h5>
+                        <h2>@GetBmiDisplay()</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Taille/lengte</h5>
+                        <h2>@GetHeightToWaistRatioDisplay()</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col">
+                <h3>Invoer van vandaag</h3>
+                @if (todayEntries.Count == 0)
+                {
+                    <p class="text-muted">Geen invoer voor vandaag.</p>
+                }
+                else
+                {
+                    <div class="list-group">
+                        @foreach (var entry in todayEntries)
+                        {
+                            var itemName = entry.FoodReferenceType == FoodReferenceType.Food
+                                ? (foods.FirstOrDefault(f => f.Id == entry.FoodItemId)?.Name ?? "Onbekend voedingsmiddel")
+                                : (recipes.FirstOrDefault(r => r.Id == entry.RecipeId)?.Name ?? "Onbekend recept");
+                            var macros = GetEntryMacros(entry);
+
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">
+                                            @if (!string.IsNullOrEmpty(entry.Meal))
+                                            {
+                                                <span class="badge bg-info">@GetMealDisplayName(entry.Meal)</span>
+                                                <span class="ms-2">@itemName</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@itemName</span>
+                                            }
+                                        </h6>
+                                        <small class="text-muted">@entry.Amount @MacroCalculator.GetUnitDisplayName(entry.Unit)</small>
+                                        @if (!string.IsNullOrEmpty(entry.Notes))
+                                        {
+                                            <br />
+                                            <small class="text-muted">Notitie: @entry.Notes</small>
+                                        }
+                                    </div>
+                                    <div class="text-end">
+                                        <small class="d-block">@MacroCalculator.FormatCalories(macros.Calories) kcal</small>
+                                        <small class="text-muted">P: @MacroCalculator.FormatMacro(macros.Protein)g C: @MacroCalculator.FormatMacro(macros.Carbs)g</small>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <a href="daily-log" class="btn btn-primary">Invoer toevoegen</a>
+                <a href="foods" class="btn btn-secondary">Voedingsmiddelen beheren</a>
+                <a href="recipes" class="btn btn-secondary">Recepten beheren</a>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<DailyLogEntry> todayEntries = new();
+    private MacroTotals todayTotals = new();
+    private List<FoodItem> foods = new();
+    private List<Recipe> recipes = new();
+    private DailyMeasurement todayMeasurement = new();
+    private PersonalData personalData = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        todayEntries = await DailyLogService.GetByDateAsync(today);
+        todayMeasurement = await MeasurementService.GetByDateAsync(today) ?? new DailyMeasurement { Date = today };
+        personalData = await PersonalDataService.GetAsync();
+        foods = await FoodService.GetAllAsync();
+        recipes = await RecipeService.GetAllAsync();
+
+        todayTotals = new MacroTotals();
+        foreach (var entry in todayEntries)
+        {
+            var entryMacros = await MacroCalculator.CalculateForEntryAsync(entry);
+            todayTotals.Calories += entryMacros.Calories;
+            todayTotals.Carbs += entryMacros.Carbs;
+            todayTotals.Protein += entryMacros.Protein;
+            todayTotals.Fat += entryMacros.Fat;
+        }
+    }
+
+    private MacroTotals GetEntryMacros(DailyLogEntry entry)
+    {
+        if (entry.FoodReferenceType == FoodReferenceType.Food && entry.FoodItemId.HasValue)
+        {
+            var food = foods.FirstOrDefault(f => f.Id == entry.FoodItemId.Value);
+            if (food != null)
+            {
+                return MacroCalculator.CalculateFromFood(food, entry.Amount, entry.Unit);
+            }
+        }
+        return new MacroTotals();
+    }
+
+    private string GetBmiDisplay()
+    {
+        if (personalData.HeightCm <= 0 || todayMeasurement.WeightKg <= 0)
+        {
+            return "-";
+        }
+
+        var heightMeters = personalData.HeightCm / 100m;
+        var bmi = todayMeasurement.WeightKg / (heightMeters * heightMeters);
+        return $"{bmi:0.00}";
+    }
+
+    private string GetHeightToWaistRatioDisplay()
+    {
+        if (personalData.HeightCm <= 0 || todayMeasurement.WaistCm <= 0)
+        {
+            return "-";
+        }
+
+        var ratio = todayMeasurement.WaistCm / personalData.HeightCm;
+        return $"{ratio:0.00}";
+    }
+
+    private static string GetMealDisplayName(string? meal) => meal switch
+    {
+        "Breakfast" => "Ontbijt",
+        "Lunch" => "Lunch",
+        "Dinner" => "Avondeten",
+        "Snack" => "Tussendoortje",
+        _ => meal ?? string.Empty
+    };
+}

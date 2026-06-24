@@ -1,0 +1,50 @@
+@page "/personal-data"
+@inject PersonalDataService PersonalDataService
+
+<PageTitle>Persoonsgegevens - MacroTracker</PageTitle>
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Persoonsgegevens</h1>
+            <p class="text-muted">Profielinstellingen voor één persoon, gebruikt voor BMI- en ratio-berekeningen.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Lichaamsprofiel</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Lengte (cm) *</label>
+                    <input type="number" class="form-control" @bind="personalData.HeightCm" step="0.1" min="1" />
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-primary" @onclick="Save">Opslaan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private PersonalData personalData = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        personalData = await PersonalDataService.GetAsync();
+    }
+
+    private async Task Save()
+    {
+        if (personalData.HeightCm <= 0)
+        {
+            return;
+        }
+
+        await PersonalDataService.SaveAsync(personalData);
+        personalData = await PersonalDataService.GetAsync();
+    }
+}

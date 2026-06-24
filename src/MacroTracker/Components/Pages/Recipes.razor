@@ -1,0 +1,295 @@
+@page "/recipes"
+@inject RecipeService RecipeService
+@inject FoodService FoodService
+@inject MacroCalculator MacroCalculator
+@inject DailyLogService DailyLogService
+@using MacroTracker.Models
+
+<PageTitle>Recepten - MacroTracker</PageTitle>
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Recepten</h1>
+        </div>
+        <div class="col text-end">
+            <button class="btn btn-primary" @onclick="ShowAddForm">Recept toevoegen</button>
+        </div>
+    </div>
+
+    @if (recipes == null || allFoods == null)
+    {
+        <p><em>Laden...</em></p>
+    }
+    else
+    {
+        @if (recipes.Count == 0)
+        {
+            <p class="text-muted">Geen recepten gevonden. Voeg je eerste recept toe!</p>
+        }
+        else
+        {
+            <div class="row">
+                @foreach (var recipe in recipes)
+                {
+                    var recipeMacros = GetRecipeMacros(recipe).Result;
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">@recipe.Name</h5>
+                                @if (!string.IsNullOrEmpty(recipe.Notes))
+                                {
+                                    <p class="card-text"><small>@recipe.Notes</small></p>
+                                }
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        Totaal gewicht: @recipe.TotalPreparedWeightGrams g<br />
+                                        Eenheid: 1 @MacroCalculator.GetUnitDisplayName(recipe.Unit) = @recipe.UnitWeightGrams g<br />
+                                        Energie per 100g: @MacroCalculator.FormatCalories(recipeMacros.Calories) kcal,
+                                        P: @MacroCalculator.FormatMacro(recipeMacros.Protein)g,
+                                        C: @MacroCalculator.FormatMacro(recipeMacros.Carbs)g,
+                                        F: @MacroCalculator.FormatMacro(recipeMacros.Fat)g
+                                    </small>
+                                </p>
+                                <button class="btn btn-sm btn-warning" @onclick="() => EditRecipe(recipe)">Bewerken</button>
+                                <button class="btn btn-sm btn-danger" @onclick="() => DeleteRecipe(recipe.Id)">Verwijderen</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+
+    @if (showForm)
+    {
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5>@(editingRecipe?.Id == Guid.Empty ? "Recept toevoegen" : "Recept bewerken")</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Receptnaam *</label>
+                    <input type="text" class="form-control" @bind="editingRecipe!.Name" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Notities</label>
+                    <textarea class="form-control" @bind="editingRecipe.Notes" rows="2"></textarea>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Eenheid *</label>
+                        <select class="form-control" @bind="editingRecipe.Unit">
+                            @foreach (FoodUnit unit in Enum.GetValues(typeof(FoodUnit)))
+                            {
+                                <option value="@unit">@MacroCalculator.GetUnitDisplayName(unit)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">@(editingRecipe.Unit == FoodUnit.Grams ? "Totaal gewicht (g)" : "Eenheidsgewicht (g)") *</label>
+                        <input type="number" class="form-control" @bind="editingRecipe.UnitWeightGrams" step="0.1" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Totaal bereid gewicht (g) *</label>
+                        <input type="number" class="form-control" @bind="editingRecipe.TotalPreparedWeightGrams" step="0.1" />
+                    </div>
+                </div>
+
+                <h6>Ingrediënten</h6>
+                <div class="mb-3">
+                    @if (editingRecipe.Ingredients.Count == 0)
+                    {
+                        <p class="text-muted">Nog geen ingrediënten toegevoegd.</p>
+                    }
+                    else
+                    {
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Voedingsmiddel</th>
+                                    <th>Hoeveelheid (g)</th>
+                                    <th>Actie</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var (ingredient, index) in editingRecipe.Ingredients.Select((i, idx) => (i, idx)))
+                                {
+                                    var food = allFoods?.FirstOrDefault(f => f.Id == ingredient.FoodItemId);
+                                    <tr>
+                                        <td>
+                                            @if (food != null)
+                                            {
+                                                <span>@food.Name</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-danger">Voedingsmiddel niet gevonden</span>
+                                            }
+                                        </td>
+                                        <td>@ingredient.AmountGrams</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-danger" @onclick="() => RemoveIngredient(index)">Verwijderen</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Selecteer voedingsmiddel om toe te voegen</label>
+                        <select class="form-control" @onchange="OnFoodSelected">
+                            <option value="">-- Kies een voedingsmiddel --</option>
+                            @foreach (var food in allFoods ?? new())
+                            {
+                                <option value="@food.Id">@food.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Hoeveelheid (g)</label>
+                        <input type="number" class="form-control" @bind="ingredientAmount" step="0.1" />
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-secondary w-100" @onclick="AddIngredient">Toevoegen</button>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <button class="btn btn-success" @onclick="SaveRecipe">Opslaan</button>
+                    <button class="btn btn-secondary" @onclick="HideForm">Annuleren</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Recipe> recipes = new();
+    private List<FoodItem> allFoods = new();
+    private bool showForm = false;
+    private Recipe editingRecipe = new();
+    private Guid selectedFoodId = Guid.Empty;
+    private decimal ingredientAmount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        recipes = await RecipeService.GetAllAsync();
+        allFoods = await FoodService.GetAllAsync();
+    }
+
+    private void ShowAddForm()
+    {
+        editingRecipe = new Recipe { Id = Guid.Empty, Ingredients = new(), Unit = FoodUnit.Grams, UnitWeightGrams = 100 };
+        showForm = true;
+        StateHasChanged();
+    }
+
+    private void EditRecipe(Recipe recipe)
+    {
+        editingRecipe = new Recipe
+        {
+            Id = recipe.Id,
+            Name = recipe.Name,
+            Notes = recipe.Notes,
+            Unit = recipe.Unit,
+            UnitWeightGrams = recipe.UnitWeightGrams,
+            TotalPreparedWeightGrams = recipe.TotalPreparedWeightGrams,
+            Ingredients = recipe.Ingredients.Select(i => new RecipeIngredient { FoodItemId = i.FoodItemId, AmountGrams = i.AmountGrams }).ToList()
+        };
+        showForm = true;
+        StateHasChanged();
+    }
+
+    private async Task SaveRecipe()
+    {
+        if (string.IsNullOrWhiteSpace(editingRecipe.Name) || editingRecipe.UnitWeightGrams <= 0 || editingRecipe.TotalPreparedWeightGrams <= 0 || editingRecipe.Ingredients.Count == 0)
+        {
+            return;
+        }
+
+        if (editingRecipe.Id == Guid.Empty)
+        {
+            await RecipeService.AddAsync(editingRecipe);
+        }
+        else
+        {
+            await RecipeService.UpdateAsync(editingRecipe);
+        }
+
+        await LoadData();
+        HideForm();
+    }
+
+    private async Task DeleteRecipe(Guid recipeId)
+    {
+        var isUsed = await RecipeService.IsRecipeUsedAsync(recipeId);
+        if (isUsed)
+        {
+            if (!await JSRuntime!.InvokeAsync<bool>("confirm", "Dit recept wordt gebruikt in daglogs. Toch verwijderen?"))
+            {
+                return;
+            }
+        }
+
+        await RecipeService.DeleteAsync(recipeId);
+        await LoadData();
+    }
+
+    private void HideForm()
+    {
+        showForm = false;
+        editingRecipe = new();
+        selectedFoodId = Guid.Empty;
+        ingredientAmount = 0;
+        StateHasChanged();
+    }
+
+    private void OnFoodSelected(ChangeEventArgs e)
+    {
+        var value = (string?)e.Value;
+        if (Guid.TryParse(value, out var guid))
+        {
+            selectedFoodId = guid;
+        }
+        else
+        {
+            selectedFoodId = Guid.Empty;
+        }
+    }
+
+    private void AddIngredient()
+    {
+        if (selectedFoodId == Guid.Empty || ingredientAmount <= 0)
+        {
+            return;
+        }
+
+        editingRecipe.Ingredients.Add(new RecipeIngredient { FoodItemId = selectedFoodId, AmountGrams = ingredientAmount });
+        selectedFoodId = Guid.Empty;
+        ingredientAmount = 0;
+    }
+
+    private void RemoveIngredient(int index)
+    {
+        if (index >= 0 && index < editingRecipe.Ingredients.Count)
+        {
+            editingRecipe.Ingredients.RemoveAt(index);
+        }
+    }
+
+    private async Task<MacroTotals> GetRecipeMacros(Recipe recipe)
+    {
+        return await MacroCalculator.GetRecipeMacrosPerHundredGramsAsync(recipe);
+    }
+
+    [Inject] IJSRuntime? JSRuntime { get; set; }
+}

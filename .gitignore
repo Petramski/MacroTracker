@@ -1,0 +1,35 @@
+# Build output
+**/bin/
+**/obj/
+**/out/
+**/publish/
+
+# .NET user and tool files
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs and diagnostics
+*.log
+*.tmp
+*.temp
+
+# Test results
+**/TestResults/
+**/coverage/
+**/*.coverage
+**/*.coveragexml
+
+# IDE and editor files
+.vs/
+.vscode/
+
+# OS-generated files
+Thumbs.db
+Desktop.ini
+
+# Runtime-generated application data
+src/MacroTracker/App_Data/*.json
+src/MacroTracker/bin/**/App_Data/
