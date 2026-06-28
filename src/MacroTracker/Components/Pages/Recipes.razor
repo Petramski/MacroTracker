@@ -32,7 +32,7 @@
             <div class="row">
                 @foreach (var recipe in recipes)
                 {
-                    var recipeMacros = GetRecipeMacros(recipe).Result;
+                    var recipeMacros = CalculateRecipeMacrosPerHundredGrams(recipe);
                     <div class="col-md-6 mb-3">
                         <div class="card">
                             <div class="card-body">
@@ -43,8 +43,7 @@
                                 }
                                 <p class="card-text">
                                     <small class="text-muted">
-                                        Totaal gewicht: @recipe.TotalPreparedWeightGrams g<br />
-                                        Eenheid: 1 @MacroCalculator.GetUnitDisplayName(recipe.Unit) = @recipe.UnitWeightGrams g<br />
+                                        Totaal bereid gewicht: @recipe.TotalPreparedWeightGrams g<br />
                                         Energie per 100g: @MacroCalculator.FormatCalories(recipeMacros.Calories) kcal,
                                         P: @MacroCalculator.FormatMacro(recipeMacros.Protein)g,
                                         C: @MacroCalculator.FormatMacro(recipeMacros.Carbs)g,
@@ -68,6 +67,9 @@
                 <h5>@(editingRecipe?.Id == Guid.Empty ? "Recept toevoegen" : "Recept bewerken")</h5>
             </div>
             <div class="card-body">
+                @{
+                    var editingRecipeMacros = CalculateEditingRecipeMacrosPerHundredGrams();
+                }
                 <div class="mb-3">
                     <label class="form-label">Receptnaam *</label>
                     <input type="text" class="form-control" @bind="editingRecipe!.Name" />
@@ -78,21 +80,19 @@
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <label class="form-label">Eenheid *</label>
-                        <select class="form-control" @bind="editingRecipe.Unit">
-                            @foreach (FoodUnit unit in Enum.GetValues(typeof(FoodUnit)))
-                            {
-                                <option value="@unit">@MacroCalculator.GetUnitDisplayName(unit)</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">@(editingRecipe.Unit == FoodUnit.Grams ? "Totaal gewicht (g)" : "Eenheidsgewicht (g)") *</label>
-                        <input type="number" class="form-control" @bind="editingRecipe.UnitWeightGrams" step="0.1" />
-                    </div>
-                    <div class="col-md-4">
                         <label class="form-label">Totaal bereid gewicht (g) *</label>
-                        <input type="number" class="form-control" @bind="editingRecipe.TotalPreparedWeightGrams" step="0.1" />
+                        <input type="number" class="form-control" @bind="editingRecipe.TotalPreparedWeightGrams" step="0.1"
+                               readonly />
+                        <small class="text-muted">Wordt automatisch berekend als som van ingrediënten.</small>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">Macro's per 100g bereiding</label>
+                        <div class="form-control bg-light">
+                            Energie: @MacroCalculator.FormatCalories(editingRecipeMacros.Calories) kcal,
+                            P: @MacroCalculator.FormatMacro(editingRecipeMacros.Protein)g,
+                            C: @MacroCalculator.FormatMacro(editingRecipeMacros.Carbs)g,
+                            F: @MacroCalculator.FormatMacro(editingRecipeMacros.Fat)g
+                        </div>
                     </div>
                 </div>
 
@@ -107,7 +107,7 @@
                         <table class="table table-sm table-bordered">
                             <thead>
                                 <tr>
-                                    <th>Voedingsmiddel</th>
+                                    <th>Ingredient</th>
                                     <th>Hoeveelheid (g)</th>
                                     <th>Actie</th>
                                 </tr>
@@ -124,12 +124,13 @@
                                             }
                                             else
                                             {
-                                                <span class="text-danger">Voedingsmiddel niet gevonden</span>
+                                                <span class="text-danger">Ingredient niet gevonden</span>
                                             }
                                         </td>
                                         <td>@ingredient.AmountGrams</td>
                                         <td>
-                                            <button class="btn btn-sm btn-danger" @onclick="() => RemoveIngredient(index)">Verwijderen</button>
+                                            <button class="btn btn-sm btn-danger"
+                                                    @onclick="() => RemoveIngredient(index)">Verwijderen</button>
                                         </td>
                                     </tr>
                                 }
@@ -140,9 +141,9 @@
 
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label class="form-label">Selecteer voedingsmiddel om toe te voegen</label>
+                        <label class="form-label">Selecteer ingredient om toe te voegen</label>
                         <select class="form-control" @onchange="OnFoodSelected">
-                            <option value="">-- Kies een voedingsmiddel --</option>
+                            <option value="">-- Kies een ingredient --</option>
                             @foreach (var food in allFoods ?? new())
                             {
                                 <option value="@food.Id">@food.Name</option>
@@ -150,8 +151,8 @@
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Hoeveelheid (g)</label>
-                        <input type="number" class="form-control" @bind="ingredientAmount" step="0.1" />
+                        <label class="form-label">Hoeveelheid (@GetSelectedFoodUnitLabel())</label>
+                        <input type="number" class="form-control" @bind="ingredientAmount" step="1" />
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
                         <button class="btn btn-secondary w-100" @onclick="AddIngredient">Toevoegen</button>
@@ -161,6 +162,9 @@
                 <div class="mt-3">
                     <button class="btn btn-success" @onclick="SaveRecipe">Opslaan</button>
                     <button class="btn btn-secondary" @onclick="HideForm">Annuleren</button>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">Velden met * zijn verplicht.</small>
                 </div>
             </div>
         </div>
@@ -189,6 +193,7 @@
     private void ShowAddForm()
     {
         editingRecipe = new Recipe { Id = Guid.Empty, Ingredients = new(), Unit = FoodUnit.Grams, UnitWeightGrams = 100 };
+        UpdateTotalPreparedWeight();
         showForm = true;
         StateHasChanged();
     }
@@ -203,18 +208,30 @@
             Unit = recipe.Unit,
             UnitWeightGrams = recipe.UnitWeightGrams,
             TotalPreparedWeightGrams = recipe.TotalPreparedWeightGrams,
-            Ingredients = recipe.Ingredients.Select(i => new RecipeIngredient { FoodItemId = i.FoodItemId, AmountGrams = i.AmountGrams }).ToList()
+            Ingredients = recipe.Ingredients.Select(i => new RecipeIngredient
+            {
+                FoodItemId = i.FoodItemId,
+                AmountGrams =
+i.AmountGrams
+            }).ToList()
         };
+        UpdateTotalPreparedWeight();
         showForm = true;
         StateHasChanged();
     }
 
     private async Task SaveRecipe()
     {
-        if (string.IsNullOrWhiteSpace(editingRecipe.Name) || editingRecipe.UnitWeightGrams <= 0 || editingRecipe.TotalPreparedWeightGrams <= 0 || editingRecipe.Ingredients.Count == 0)
+        UpdateTotalPreparedWeight();
+
+        if (string.IsNullOrWhiteSpace(editingRecipe.Name) || editingRecipe.TotalPreparedWeightGrams <= 0 ||
+editingRecipe.Ingredients.Count == 0)
         {
             return;
         }
+
+        editingRecipe.Unit = FoodUnit.Grams;
+        editingRecipe.UnitWeightGrams = 100;
 
         if (editingRecipe.Id == Guid.Empty)
         {
@@ -273,7 +290,15 @@
             return;
         }
 
-        editingRecipe.Ingredients.Add(new RecipeIngredient { FoodItemId = selectedFoodId, AmountGrams = ingredientAmount });
+        var selectedFood = allFoods.FirstOrDefault(f => f.Id == selectedFoodId);
+        if (selectedFood == null)
+        {
+            return;
+        }
+
+        var amountGrams = MacroCalculator.ConvertToGrams(ingredientAmount, selectedFood.Unit, selectedFood.UnitWeightGrams);
+        editingRecipe.Ingredients.Add(new RecipeIngredient { FoodItemId = selectedFoodId, AmountGrams = amountGrams });
+        UpdateTotalPreparedWeight();
         selectedFoodId = Guid.Empty;
         ingredientAmount = 0;
     }
@@ -283,12 +308,92 @@
         if (index >= 0 && index < editingRecipe.Ingredients.Count)
         {
             editingRecipe.Ingredients.RemoveAt(index);
+            UpdateTotalPreparedWeight();
         }
     }
 
-    private async Task<MacroTotals> GetRecipeMacros(Recipe recipe)
+    private void UpdateTotalPreparedWeight()
     {
-        return await MacroCalculator.GetRecipeMacrosPerHundredGramsAsync(recipe);
+        editingRecipe.TotalPreparedWeightGrams = editingRecipe.Ingredients.Sum(i => i.AmountGrams);
+    }
+
+    private string GetSelectedFoodUnitLabel()
+    {
+        if (selectedFoodId == Guid.Empty)
+        {
+            return "eenheid";
+        }
+
+        var selectedFood = allFoods.FirstOrDefault(f => f.Id == selectedFoodId);
+        return selectedFood == null ? "eenheid" : MacroCalculator.GetUnitDisplayName(selectedFood.Unit);
+    }
+
+    private MacroTotals CalculateEditingRecipeMacrosPerHundredGrams()
+    {
+        var totalMacros = new MacroTotals();
+
+        foreach (var ingredient in editingRecipe.Ingredients)
+        {
+            var food = allFoods.FirstOrDefault(f => f.Id == ingredient.FoodItemId);
+            if (food == null)
+            {
+                continue;
+            }
+
+            var factor = ingredient.AmountGrams / 100;
+            totalMacros.Calories += food.CaloriesPer100g * factor;
+            totalMacros.Carbs += food.CarbsPer100g * factor;
+            totalMacros.Protein += food.ProteinPer100g * factor;
+            totalMacros.Fat += food.FatPer100g * factor;
+        }
+
+        if (editingRecipe.TotalPreparedWeightGrams <= 0)
+        {
+            return new MacroTotals();
+        }
+
+        var perHundredFactor = 100 / editingRecipe.TotalPreparedWeightGrams;
+        return new MacroTotals
+        {
+            Calories = totalMacros.Calories * perHundredFactor,
+            Carbs = totalMacros.Carbs * perHundredFactor,
+            Protein = totalMacros.Protein * perHundredFactor,
+            Fat = totalMacros.Fat * perHundredFactor
+        };
+    }
+
+    private MacroTotals CalculateRecipeMacrosPerHundredGrams(Recipe recipe)
+    {
+        var totalMacros = new MacroTotals();
+
+        foreach (var ingredient in recipe.Ingredients)
+        {
+            var food = allFoods.FirstOrDefault(f => f.Id == ingredient.FoodItemId);
+            if (food == null)
+            {
+                continue;
+            }
+
+            var factor = ingredient.AmountGrams / 100;
+            totalMacros.Calories += food.CaloriesPer100g * factor;
+            totalMacros.Carbs += food.CarbsPer100g * factor;
+            totalMacros.Protein += food.ProteinPer100g * factor;
+            totalMacros.Fat += food.FatPer100g * factor;
+        }
+
+        if (recipe.TotalPreparedWeightGrams <= 0)
+        {
+            return new MacroTotals();
+        }
+
+        var perHundredFactor = 100 / recipe.TotalPreparedWeightGrams;
+        return new MacroTotals
+        {
+            Calories = totalMacros.Calories * perHundredFactor,
+            Carbs = totalMacros.Carbs * perHundredFactor,
+            Protein = totalMacros.Protein * perHundredFactor,
+            Fat = totalMacros.Fat * perHundredFactor
+        };
     }
 
     [Inject] IJSRuntime? JSRuntime { get; set; }

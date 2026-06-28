@@ -86,7 +86,7 @@
                         @foreach (var entry in todayEntries)
                         {
                             var itemName = entry.FoodReferenceType == FoodReferenceType.Food
-                                ? (foods.FirstOrDefault(f => f.Id == entry.FoodItemId)?.Name ?? "Onbekend voedingsmiddel")
+                                ? (foods.FirstOrDefault(f => f.Id == entry.FoodItemId)?.Name ?? "Onbekend ingredient")
                                 : (recipes.FirstOrDefault(r => r.Id == entry.RecipeId)?.Name ?? "Onbekend recept");
                             var macros = GetEntryMacros(entry);
 
@@ -104,34 +104,36 @@
                                                 <span>@itemName</span>
                                             }
                                         </h6>
-                                        <small class="text-muted">@entry.Amount @MacroCalculator.GetUnitDisplayName(entry.Unit)</small>
-                                        @if (!string.IsNullOrEmpty(entry.Notes))
-                                        {
-                                            <br />
-                                            <small class="text-muted">Notitie: @entry.Notes</small>
-                                        }
+                                        <small class="text-muted">@entry.Amount
+                                            @MacroCalculator.GetUnitDisplayName(entry.Unit)</small>
+                                            @if (!string.IsNullOrEmpty(entry.Notes))
+                                            {
+                                                <br />
+                                                <small class="text-muted">Notitie: @entry.Notes</small>
+                                            }
+                                        </div>
+                                        <div class="text-end">
+                                            <small class="d-block">@MacroCalculator.FormatCalories(macros.Calories) kcal</small>
+                                            <small class="text-muted">P: @MacroCalculator.FormatMacro(macros.Protein)g C:
+                                                @MacroCalculator.FormatMacro(macros.Carbs)g</small>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="text-end">
-                                        <small class="d-block">@MacroCalculator.FormatCalories(macros.Calories) kcal</small>
-                                        <small class="text-muted">P: @MacroCalculator.FormatMacro(macros.Protein)g C: @MacroCalculator.FormatMacro(macros.Carbs)g</small>
-                                    </div>
-                                </div>
+                                }
                             </div>
                         }
                     </div>
-                }
-            </div>
-        </div>
+                </div>
 
-        <div class="row">
-            <div class="col">
-                <a href="daily-log" class="btn btn-primary">Invoer toevoegen</a>
-                <a href="foods" class="btn btn-secondary">Voedingsmiddelen beheren</a>
-                <a href="recipes" class="btn btn-secondary">Recepten beheren</a>
-            </div>
+                <div class="row">
+                    <div class="col">
+                        <a href="daily-log" class="btn btn-primary">Invoer toevoegen</a>
+                        <a href="foods" class="btn btn-secondary">Ingredienten beheren</a>
+                        <a href="recipes" class="btn btn-secondary">Recepten beheren</a>
+                    </div>
+                </div>
+            }
         </div>
-    }
-</div>
 
 @code {
     private List<DailyLogEntry> todayEntries = new();

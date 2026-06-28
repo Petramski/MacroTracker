@@ -11,7 +11,8 @@
     </div>
 
     <div class="alert alert-info" role="alert">
-        <strong>Let op:</strong> MacroTracker is een lokaal-eerst applicatie. Alle data wordt opgeslagen als platte JSON-tekstbestanden. Er is geen SQL-database, geen SQLite en geen database-afhankelijkheden.
+        <strong>Let op:</strong> MacroTracker is een lokaal-eerst applicatie. Alle data wordt opgeslagen als platte
+        JSON-tekstbestanden. Er is geen SQL-database, geen SQLite en geen database-afhankelijkheden.
     </div>
 
     <div class="card">
@@ -23,15 +24,19 @@
                 <strong>App_Data-map:</strong>
             </p>
             <div class="input-group">
-                <input class="form-control" type="text" value="@GetAppDataPath()" readonly style="font-family: monospace;" />
+                <input class="form-control" type="text" value="@GetAppDataPath()" readonly
+                       style="font-family: monospace;" />
             </div>
             <div class="d-flex align-items-center gap-2 mt-2">
                 <small class="text-muted">Exporteer of importeer alle JSON-data als een .zip-bestand.</small>
             </div>
-            <form action="/api/data-files/import" method="post" enctype="multipart/form-data" class="mt-2 d-flex gap-2 align-items-center">
-                <input id="zipFileInput" class="d-none" type="file" name="zipFile" accept=".zip" required onchange="this.form.submit();" />
+            <form action="/api/data-files/import" method="post" enctype="multipart/form-data"
+                  class="mt-2 d-flex gap-2 align-items-center">
+                <input id="zipFileInput" class="d-none" type="file" name="zipFile" accept=".zip" required
+                       onchange="this.form.submit();" />
                 <a class="btn btn-outline-primary" href="/api/data-files/export">Exporteren</a>
-                <button class="btn btn-outline-primary" type="button" onclick="document.getElementById('zipFileInput').click();">Importeren</button>
+                <button class="btn btn-outline-primary" type="button"
+                        onclick="document.getElementById('zipFileInput').click();">Importeren</button>
             </form>
         </div>
     </div>
@@ -44,65 +49,70 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h6 class="mb-1">foods.json</h6>
-                            <p class="mb-1"><small class="text-muted">Bevat alle voedingsmiddelen en producten met hun macrowaarden per 100g.</small></p>
+                            <p class="mb-1"><small class="text-muted">Bevat alle ingredienten en producten met hun
+                                macrowaarden per 100g.</small></p>
+                            </div>
+                            <small>@GetFileInfo("foods.json")</small>
                         </div>
-                        <small>@GetFileInfo("foods.json")</small>
-                    </div>
-                </a>
-                <a href="#" class="list-group-item">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-1">recipes.json</h6>
-                            <p class="mb-1"><small class="text-muted">Bevat alle recepten met ingrediënten en macroberekeningen.</small></p>
+                    </a>
+                    <a href="#" class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">recipes.json</h6>
+                                <p class="mb-1"><small class="text-muted">Bevat alle recepten met ingrediënten en
+                                    macroberekeningen.</small></p>
+                                </div>
+                                <small>@GetFileInfo("recipes.json")</small>
+                            </div>
+                        </a>
+                        <a href="#" class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">daily-log.json</h6>
+                                    <p class="mb-1"><small class="text-muted">Bevat dagelijkse voedings- en receptinvoer met
+                                        datums en porties.</small></p>
+                                    </div>
+                                    <small>@GetFileInfo("daily-log.json")</small>
+                                </div>
+                            </a>
+                            <a href="#" class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">measurements.json</h6>
+                                        <p class="mb-1"><small class="text-muted">Bevat dagelijkse lichaamsmetingen, waaronder
+                                            gewicht en tailleomtrek.</small></p>
+                                        </div>
+                                        <small>@GetFileInfo("measurements.json")</small>
+                                    </div>
+                                </a>
+                                <a href="#" class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">personal-data.json</h6>
+                                            <p class="mb-1"><small class="text-muted">Bevat profielgegevens van één gebruiker, zoals
+                                                lengte, voor BMI- en ratio-berekeningen.</small></p>
+                                            </div>
+                                            <small>@GetFileInfo("personal-data.json")</small>
+                                        </div>
+                                    </a>
+                                </div>
+                            </div>
                         </div>
-                        <small>@GetFileInfo("recipes.json")</small>
-                    </div>
-                </a>
-                <a href="#" class="list-group-item">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-1">daily-log.json</h6>
-                            <p class="mb-1"><small class="text-muted">Bevat dagelijkse voedings- en receptinvoer met datums en porties.</small></p>
-                        </div>
-                        <small>@GetFileInfo("daily-log.json")</small>
-                    </div>
-                </a>
-                <a href="#" class="list-group-item">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-1">measurements.json</h6>
-                            <p class="mb-1"><small class="text-muted">Bevat dagelijkse lichaamsmetingen, waaronder gewicht en tailleomtrek.</small></p>
-                        </div>
-                        <small>@GetFileInfo("measurements.json")</small>
-                    </div>
-                </a>
-                <a href="#" class="list-group-item">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-1">personal-data.json</h6>
-                            <p class="mb-1"><small class="text-muted">Bevat profielgegevens van één gebruiker, zoals lengte, voor BMI- en ratio-berekeningen.</small></p>
-                        </div>
-                        <small>@GetFileInfo("personal-data.json")</small>
-                    </div>
-                </a>
-            </div>
-        </div>
-    </div>
 
-    <div class="row mt-4">
-        <div class="col">
-            <h5>Over deze applicatie</h5>
-            <ul>
-                <li>Gebouwd met <strong>C# en Blazor Server</strong></li>
-                <li>Gebruikt <strong>System.Text.Json</strong> voor serialisatie</li>
-                <li>Alle persistentie is bestand-gebaseerd met <strong>geen database-afhankelijkheden</strong></li>
-                <li>Data is menselijk leesbare JSON, geschikt voor versiebeheer of handmatige bewerking</li>
-                <li>Thread-veilige bestandsbewerkingen met <code>SemaphoreSlim</code></li>
-                <li>Draait lokaal met <code>dotnet run</code></li>
-            </ul>
-        </div>
-    </div>
-</div>
+                        <div class="row mt-4">
+                            <div class="col">
+                                <h5>Over deze applicatie</h5>
+                                <ul>
+                                    <li>Gebouwd met <strong>C# en Blazor Server</strong></li>
+                                    <li>Gebruikt <strong>System.Text.Json</strong> voor serialisatie</li>
+                                    <li>Alle persistentie is bestand-gebaseerd met <strong>geen database-afhankelijkheden</strong></li>
+                                    <li>Data is menselijk leesbare JSON, geschikt voor versiebeheer of handmatige bewerking</li>
+                                    <li>Thread-veilige bestandsbewerkingen met <code>SemaphoreSlim</code></li>
+                                    <li>Draait lokaal met <code>dotnet run</code></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
 
 @code {
     private string GetAppDataPath()
