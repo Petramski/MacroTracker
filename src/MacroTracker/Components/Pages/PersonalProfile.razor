@@ -19,7 +19,8 @@
             <div class="row">
                 <div class="col-md-4">
                     <label class="form-label">Lengte (cm) *</label>
-                    <input type="number" class="form-control" @bind="personalData.HeightCm" step="0.1" min="1" />
+                    <input type="number" class="form-control" @bind="personalData.HeightCm"
+                           @bind:after="OnHeightChanged" step="0.1" min="1" />
                 </div>
                 <div class="col-md-4 d-flex align-items-end">
                     <button class="btn btn-primary" @onclick="Save">Opslaan</button>
@@ -30,14 +31,38 @@
             </div>
         </div>
     </div>
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Doelen</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Gewicht (kg)</label>
+                    <input type="number" class="form-control" @bind="personalData.GoalWeightKg"
+                           @bind:after="OnGoalWeightChanged" step="0.1" min="0" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">BMI</label>
+                    <input type="number" class="form-control" @bind="goalBmi" @bind:after="OnGoalBmiChanged" step="0.1"
+                           min="0" />
+                    <small class="text-muted">Gewicht en BMI zijn gekoppeld op basis van lengte.</small>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @code {
     private PersonalData personalData = new();
+    private decimal goalBmi;
+    private GoalEditSource lastGoalEditSource = GoalEditSource.Weight;
 
     protected override async Task OnInitializedAsync()
     {
         personalData = await PersonalDataService.GetAsync();
+        InitializeGoalMetrics();
     }
 
     private async Task Save()
@@ -49,5 +74,94 @@
 
         await PersonalDataService.SaveAsync(personalData);
         personalData = await PersonalDataService.GetAsync();
+        InitializeGoalMetrics();
+    }
+
+    private void OnHeightChanged()
+    {
+        if (personalData.HeightCm <= 0)
+        {
+            goalBmi = 0;
+            return;
+        }
+
+        if (personalData.GoalWeightKg > 0)
+        {
+            goalBmi = CalculateBmiFromWeight(personalData.GoalWeightKg, personalData.HeightCm);
+            return;
+        }
+
+        if (goalBmi > 0)
+        {
+            personalData.GoalWeightKg = CalculateWeightFromBmi(goalBmi, personalData.HeightCm);
+        }
+    }
+
+    private void OnGoalWeightChanged()
+    {
+        lastGoalEditSource = GoalEditSource.Weight;
+
+        if (personalData.HeightCm <= 0 || personalData.GoalWeightKg <= 0)
+        {
+            goalBmi = 0;
+            return;
+        }
+
+        goalBmi = CalculateBmiFromWeight(personalData.GoalWeightKg, personalData.HeightCm);
+    }
+
+    private void OnGoalBmiChanged()
+    {
+        lastGoalEditSource = GoalEditSource.Bmi;
+
+        if (personalData.HeightCm <= 0 || goalBmi <= 0)
+        {
+            personalData.GoalWeightKg = 0;
+            return;
+        }
+
+        personalData.GoalWeightKg = CalculateWeightFromBmi(goalBmi, personalData.HeightCm);
+    }
+
+    private void RecalculateByLastEditedField()
+    {
+        if (lastGoalEditSource == GoalEditSource.Bmi)
+        {
+            OnGoalBmiChanged();
+        }
+        else
+        {
+            OnGoalWeightChanged();
+        }
+    }
+
+    private void InitializeGoalMetrics()
+    {
+        if (personalData.HeightCm > 0 && personalData.GoalWeightKg > 0)
+        {
+            goalBmi = CalculateBmiFromWeight(personalData.GoalWeightKg, personalData.HeightCm);
+            lastGoalEditSource = GoalEditSource.Weight;
+            return;
+        }
+
+        goalBmi = 0;
+    }
+
+    private static decimal CalculateBmiFromWeight(decimal weightKg, decimal heightCm)
+    {
+        var heightMeters = heightCm / 100m;
+        return Math.Round(weightKg / (heightMeters * heightMeters), 2);
+    }
+
+    private static decimal CalculateWeightFromBmi(decimal bmi, decimal heightCm)
+    {
+        var heightMeters = heightCm / 100m;
+        return Math.Round(bmi * heightMeters * heightMeters, 1);
+    }
+
+    private enum GoalEditSource
+    {
+        Weight,
+        Bmi
     }
 }

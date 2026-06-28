@@ -1,5 +1,6 @@
 @page "/data-files"
 @using System.IO
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Databestanden - MacroTracker</PageTitle>
 
@@ -45,76 +46,70 @@
         <div class="col">
             <h5>JSON-bestanden</h5>
             <div class="list-group">
-                <a href="#" class="list-group-item">
-                    <div class="d-flex justify-content-between align-items-center">
+                <div class="list-group-item bg-light">
+                    <div class="d-flex justify-content-between align-items-center gap-3">
                         <div>
-                            <h6 class="mb-1">foods.json</h6>
-                            <p class="mb-1"><small class="text-muted">Bevat alle ingredienten en producten met hun
-                                macrowaarden per 100g.</small></p>
-                            </div>
-                            <small>@GetFileInfo("foods.json")</small>
+                            <h6 class="mb-1">Alle</h6>
                         </div>
-                    </a>
-                    <a href="#" class="list-group-item">
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <small class="text-muted">@GetTotalFileSizeBytes() bytes</small>
+                            <input class="form-check-input" type="checkbox" checked="@IsAllSelected"
+                                   @onchange="ToggleAllSelections" />
+                        </div>
+                    </div>
+                </div>
+                @foreach (var dataFile in dataFiles)
+                {
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center gap-3">
                             <div>
-                                <h6 class="mb-1">recipes.json</h6>
-                                <p class="mb-1"><small class="text-muted">Bevat alle recepten met ingrediënten en
-                                    macroberekeningen.</small></p>
-                                </div>
-                                <small>@GetFileInfo("recipes.json")</small>
+                                <h6 class="mb-1">@dataFile.FileName</h6>
+                                <p class="mb-1"><small class="text-muted">@dataFile.Description</small></p>
                             </div>
-                        </a>
-                        <a href="#" class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-1">daily-log.json</h6>
-                                    <p class="mb-1"><small class="text-muted">Bevat dagelijkse voedings- en receptinvoer met
-                                        datums en porties.</small></p>
-                                    </div>
-                                    <small>@GetFileInfo("daily-log.json")</small>
-                                </div>
-                            </a>
-                            <a href="#" class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-1">measurements.json</h6>
-                                        <p class="mb-1"><small class="text-muted">Bevat dagelijkse lichaamsmetingen, waaronder
-                                            gewicht en tailleomtrek.</small></p>
-                                        </div>
-                                        <small>@GetFileInfo("measurements.json")</small>
-                                    </div>
-                                </a>
-                                <a href="#" class="list-group-item">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="mb-1">personal-data.json</h6>
-                                            <p class="mb-1"><small class="text-muted">Bevat profielgegevens van één gebruiker, zoals
-                                                lengte, voor BMI- en ratio-berekeningen.</small></p>
-                                            </div>
-                                            <small>@GetFileInfo("personal-data.json")</small>
-                                        </div>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row mt-4">
-                            <div class="col">
-                                <h5>Over deze applicatie</h5>
-                                <ul>
-                                    <li>Gebouwd met <strong>C# en Blazor Server</strong></li>
-                                    <li>Gebruikt <strong>System.Text.Json</strong> voor serialisatie</li>
-                                    <li>Alle persistentie is bestand-gebaseerd met <strong>geen database-afhankelijkheden</strong></li>
-                                    <li>Data is menselijk leesbare JSON, geschikt voor versiebeheer of handmatige bewerking</li>
-                                    <li>Thread-veilige bestandsbewerkingen met <code>SemaphoreSlim</code></li>
-                                    <li>Draait lokaal met <code>dotnet run</code></li>
-                                </ul>
+                            <div class="d-flex align-items-center gap-2">
+                                <small class="text-muted">@GetFileInfo(dataFile.FileName)</small>
+                                <input class="form-check-input" type="checkbox"
+                                       checked="@selectedFiles.Contains(dataFile.FileName)"
+                                       @onchange="e => ToggleFileSelection(e, dataFile.FileName)" />
                             </div>
                         </div>
                     </div>
+                }
+            </div>
+            <div class="d-flex justify-content-end mt-3">
+                <button class="btn btn-outline-danger btn-clear-selected" @onclick="ClearSelectedDataFilesAsync"
+                        disabled="@(selectedFiles.Count == 0)">Wis geselecteerde bestanden</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col">
+            <h5>Over deze applicatie</h5>
+            <ul>
+                <li>Gebouwd met <strong>C# en Blazor Server</strong></li>
+                <li>Gebruikt <strong>System.Text.Json</strong> voor serialisatie</li>
+                <li>Alle persistentie is bestand-gebaseerd met <strong>geen database-afhankelijkheden</strong></li>
+                <li>Data is menselijk leesbare JSON, geschikt voor versiebeheer of handmatige bewerking</li>
+                <li>Thread-veilige bestandsbewerkingen met <code>SemaphoreSlim</code></li>
+                <li>Draait lokaal met <code>dotnet run</code></li>
+            </ul>
+        </div>
+    </div>
+</div>
 
 @code {
+    private readonly List<DataFileDescriptor> dataFiles =
+    [
+        new("foods.json", "Bevat alle ingredienten en producten met hun macrowaarden per 100g."),
+        new("recipes.json", "Bevat alle recepten met ingrediënten en macroberekeningen."),
+        new("daily-log.json", "Bevat dagelijkse voedings- en receptinvoer met datums en porties."),
+        new("measurements.json", "Bevat dagelijkse lichaamsmetingen, waaronder gewicht en tailleomtrek."),
+        new("personal-data.json", "Bevat profielgegevens van één gebruiker, zoals lengte, voor BMI- en ratio-berekeningen.")
+    ];
+    private readonly HashSet<string> selectedFiles = new(StringComparer.OrdinalIgnoreCase);
+    private bool IsAllSelected => dataFiles.Count > 0 && selectedFiles.Count == dataFiles.Count;
+
     private string GetAppDataPath()
     {
         return Path.Combine(AppContext.BaseDirectory, "App_Data");
@@ -130,4 +125,85 @@
         }
         return "0 bytes (nog niet aangemaakt)";
     }
+
+    private long GetTotalFileSizeBytes()
+    {
+        var folderPath = GetAppDataPath();
+        long total = 0;
+
+        foreach (var file in dataFiles)
+        {
+            var filePath = Path.Combine(folderPath, file.FileName);
+            if (File.Exists(filePath))
+            {
+                total += new FileInfo(filePath).Length;
+            }
+        }
+
+        return total;
+    }
+
+    private void ToggleAllSelections(ChangeEventArgs e)
+    {
+        var isChecked = e.Value is bool b && b;
+        selectedFiles.Clear();
+
+        if (!isChecked)
+        {
+            return;
+        }
+
+        foreach (var dataFile in dataFiles)
+        {
+            selectedFiles.Add(dataFile.FileName);
+        }
+    }
+
+    private void ToggleFileSelection(ChangeEventArgs e, string fileName)
+    {
+        var isChecked = e.Value is bool b && b;
+        if (isChecked)
+        {
+            selectedFiles.Add(fileName);
+        }
+        else
+        {
+            selectedFiles.Remove(fileName);
+        }
+    }
+
+    private async Task ClearSelectedDataFilesAsync()
+    {
+        if (selectedFiles.Count == 0)
+        {
+            return;
+        }
+
+        var filesToClear = selectedFiles.OrderBy(f => f).ToList();
+        var fileList = string.Join(", ", filesToClear);
+
+        var confirmed = await JSRuntime.InvokeAsync<bool>(
+            "confirm",
+            $"Waarschuwing: je staat op het punt de gegevens in deze bestanden te wissen: {fileList}. Deze actie kan niet ongedaan worden gemaakt. Doorgaan?");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        var folderPath = GetAppDataPath();
+        Directory.CreateDirectory(folderPath);
+
+        foreach (var fileName in filesToClear)
+        {
+            var filePath = Path.Combine(folderPath, fileName);
+            await File.WriteAllTextAsync(filePath, "[]");
+        }
+
+        selectedFiles.Clear();
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private sealed record DataFileDescriptor(string FileName, string Description);
 }

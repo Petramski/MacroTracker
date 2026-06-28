@@ -33,3 +33,12 @@ Desktop.ini
 # Runtime-generated application data
 src/MacroTracker/App_Data/*.json
 src/MacroTracker/bin/**/App_Data/
+
+# Generated local verification build outputs (keep committed baselines)
+artifacts/verify-build-*/
+!artifacts/verify-build/
+!artifacts/verify-build/**
+
+src/MacroTracker/artifacts/verify-build-*/
+!src/MacroTracker/artifacts/verify-build-recipes/
+!src/MacroTracker/artifacts/verify-build-recipes/**

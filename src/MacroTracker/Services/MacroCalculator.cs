@@ -64,10 +64,36 @@ public class MacroCalculator
 
     public async Task<MacroTotals> GetRecipeMacrosPerHundredGramsAsync(Recipe recipe)
     {
+        return await GetRecipeMacrosPerHundredGramsAsync(recipe, new HashSet<Guid>());
+    }
+
+    private async Task<MacroTotals> GetRecipeMacrosPerHundredGramsAsync(Recipe recipe, HashSet<Guid> visitedRecipeIds)
+    {
+        if (recipe.Id != Guid.Empty && !visitedRecipeIds.Add(recipe.Id))
+        {
+            return new MacroTotals();
+        }
+
         var totalMacros = new MacroTotals();
 
         foreach (var ingredient in recipe.Ingredients)
         {
+            if (ingredient.ReferenceType == FoodReferenceType.Recipe && ingredient.RecipeId.HasValue)
+            {
+                var nestedRecipe = await _recipeService.GetByIdAsync(ingredient.RecipeId.Value);
+                if (nestedRecipe != null)
+                {
+                    var nestedPerHundred = await GetRecipeMacrosPerHundredGramsAsync(nestedRecipe, visitedRecipeIds);
+                    var nestedFactor = ingredient.AmountGrams / 100;
+                    totalMacros.Calories += nestedPerHundred.Calories * nestedFactor;
+                    totalMacros.Carbs += nestedPerHundred.Carbs * nestedFactor;
+                    totalMacros.Protein += nestedPerHundred.Protein * nestedFactor;
+                    totalMacros.Fat += nestedPerHundred.Fat * nestedFactor;
+                }
+
+                continue;
+            }
+
             var food = await _foodService.GetByIdAsync(ingredient.FoodItemId);
             if (food != null)
             {
@@ -86,6 +112,11 @@ public class MacroCalculator
             totalMacros.Carbs *= factor;
             totalMacros.Protein *= factor;
             totalMacros.Fat *= factor;
+        }
+
+        if (recipe.Id != Guid.Empty)
+        {
+            visitedRecipeIds.Remove(recipe.Id);
         }
 
         return totalMacros;

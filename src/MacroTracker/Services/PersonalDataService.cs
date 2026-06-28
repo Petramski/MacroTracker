@@ -32,6 +32,7 @@ public class PersonalDataService
         else
         {
             existing.HeightCm = personalData.HeightCm;
+            existing.GoalWeightKg = personalData.GoalWeightKg;
             existing.UpdatedAt = DateTime.UtcNow;
             items = new List<PersonalData> { existing };
         }

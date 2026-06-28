@@ -489,10 +489,37 @@
 
     private MacroTotals CalculateRecipeMacrosPerHundredGrams(Recipe recipe)
     {
+        return CalculateRecipeMacrosPerHundredGrams(recipe, new HashSet<Guid>());
+    }
+
+    private MacroTotals CalculateRecipeMacrosPerHundredGrams(Recipe recipe, HashSet<Guid> visitedRecipeIds)
+    {
+        if (recipe.Id != Guid.Empty && !visitedRecipeIds.Add(recipe.Id))
+        {
+            return new MacroTotals();
+        }
+
         var totalMacros = new MacroTotals();
 
         foreach (var ingredient in recipe.Ingredients)
         {
+            if (ingredient.ReferenceType == FoodReferenceType.Recipe && ingredient.RecipeId.HasValue)
+            {
+                var nestedRecipe = recipes?.FirstOrDefault(r => r.Id == ingredient.RecipeId.Value);
+                if (nestedRecipe == null)
+                {
+                    continue;
+                }
+
+                var nestedPerHundred = CalculateRecipeMacrosPerHundredGrams(nestedRecipe, visitedRecipeIds);
+                var nestedFactor = ingredient.AmountGrams / 100;
+                totalMacros.Calories += nestedPerHundred.Calories * nestedFactor;
+                totalMacros.Carbs += nestedPerHundred.Carbs * nestedFactor;
+                totalMacros.Protein += nestedPerHundred.Protein * nestedFactor;
+                totalMacros.Fat += nestedPerHundred.Fat * nestedFactor;
+                continue;
+            }
+
             var food = foods?.FirstOrDefault(f => f.Id == ingredient.FoodItemId);
             if (food == null)
             {
@@ -508,16 +535,27 @@
 
         if (recipe.TotalPreparedWeightGrams <= 0)
         {
+            if (recipe.Id != Guid.Empty)
+            {
+                visitedRecipeIds.Remove(recipe.Id);
+            }
             return new MacroTotals();
         }
 
         var perHundredFactor = 100 / recipe.TotalPreparedWeightGrams;
-        return new MacroTotals
+        var result = new MacroTotals
         {
             Calories = totalMacros.Calories * perHundredFactor,
             Carbs = totalMacros.Carbs * perHundredFactor,
             Protein = totalMacros.Protein * perHundredFactor,
             Fat = totalMacros.Fat * perHundredFactor
         };
+
+        if (recipe.Id != Guid.Empty)
+        {
+            visitedRecipeIds.Remove(recipe.Id);
+        }
+
+        return result;
     }
 }

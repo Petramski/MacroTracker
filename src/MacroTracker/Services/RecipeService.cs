@@ -58,4 +58,66 @@ public class RecipeService
         var dailyLog = await new DailyLogService().GetAllAsync();
         return dailyLog.Any(e => e.RecipeId == recipeId);
     }
+
+    public async Task<bool> WouldCreateCircularReferenceAsync(Recipe candidate)
+    {
+        if (candidate.Id == Guid.Empty)
+        {
+            return false;
+        }
+
+        var recipes = await _store.LoadAsync();
+        var recipeById = recipes.ToDictionary(r => r.Id, r => r);
+        recipeById[candidate.Id] = candidate;
+
+        foreach (var childRecipeId in GetChildRecipeIds(candidate))
+        {
+            if (childRecipeId == candidate.Id)
+            {
+                return true;
+            }
+
+            if (HasPathToTarget(childRecipeId, candidate.Id, new HashSet<Guid> { candidate.Id }, recipeById))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<Guid> GetChildRecipeIds(Recipe recipe)
+    {
+        return recipe.Ingredients
+            .Where(i => i.ReferenceType == FoodReferenceType.Recipe && i.RecipeId.HasValue)
+            .Select(i => i.RecipeId!.Value);
+    }
+
+    private static bool HasPathToTarget(Guid currentId, Guid targetId, HashSet<Guid> visited, Dictionary<Guid, Recipe> recipeById)
+    {
+        if (!visited.Add(currentId))
+        {
+            return false;
+        }
+
+        if (!recipeById.TryGetValue(currentId, out var currentRecipe))
+        {
+            return false;
+        }
+
+        foreach (var nextId in GetChildRecipeIds(currentRecipe))
+        {
+            if (nextId == targetId)
+            {
+                return true;
+            }
+
+            if (HasPathToTarget(nextId, targetId, visited, recipeById))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
