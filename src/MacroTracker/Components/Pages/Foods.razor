@@ -53,7 +53,7 @@
                             <th>Koolhydraten</th>
                             <th>Eiwit</th>
                             <th>Vet</th>
-                            <th>Acties</th>
+                            <th class="action-column">Acties</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -75,9 +75,19 @@
                                 <td>@food.CarbsPer100g g</td>
                                 <td>@food.ProteinPer100g g</td>
                                 <td>@food.FatPer100g g</td>
-                                <td>
-                                    <button class="btn btn-sm btn-warning" @onclick="() => EditFood(food)">Bewerken</button>
-                                    <button class="btn btn-sm btn-danger" @onclick="() => DeleteFood(food.Id)">Verwijderen</button>
+                                <td class="action-column">
+                                    <div class="d-inline-flex flex-nowrap gap-1">
+                                        <button class="btn btn-sm btn-warning icon-action-btn" @onclick="() => EditFood(food)"
+                                                title="Bewerken">
+                                            <span aria-hidden="true">✎</span>
+                                            <span class="visually-hidden">Bewerken</span>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger icon-action-btn" @onclick="() => DeleteFood(food.Id)"
+                                                title="Verwijderen">
+                                            <span aria-hidden="true">🗑</span>
+                                            <span class="visually-hidden">Verwijderen</span>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         }

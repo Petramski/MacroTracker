@@ -141,6 +141,89 @@ public class MacroCalculator
     public static string FormatCalories(decimal cal) => Math.Round(cal, 0).ToString("F0");
     public static string FormatMacro(decimal macro) => Math.Round(macro, 1).ToString("F1");
 
+    public static decimal? CalculateBmi(decimal weightKg, decimal heightCm)
+    {
+        if (weightKg <= 0 || heightCm <= 0)
+        {
+            return null;
+        }
+
+        var heightMeters = heightCm / 100m;
+        return Math.Round(weightKg / (heightMeters * heightMeters), 2);
+    }
+
+    public static string GetBmiTileClass(decimal? bmi) => bmi switch
+    {
+        null => "card bg-light",
+        < 18.5m => "card bmi-tile bmi-tile-underweight text-white",
+        < 25m => "card bmi-tile bmi-tile-healthy text-white",
+        < 30m => "card bmi-tile bmi-tile-overweight-1 text-dark",
+        < 40m => "card bmi-tile bmi-tile-overweight-2 text-white",
+        _ => "card bmi-tile bmi-tile-overweight-3 text-white"
+    };
+
+    public static string GetBmiTableCellClass(decimal? bmi) => bmi switch
+    {
+        null => string.Empty,
+        < 18.5m => "bmi-table-text-underweight",
+        < 25m => "bmi-table-text-healthy",
+        < 30m => "bmi-table-text-overweight-1",
+        < 40m => "bmi-table-text-overweight-2",
+        _ => "bmi-table-text-overweight-3"
+    };
+
+    public static decimal? CalculateWaistToHeightRatio(decimal waistCm, decimal heightCm)
+    {
+        if (waistCm <= 0 || heightCm <= 0)
+        {
+            return null;
+        }
+
+        return Math.Round(waistCm / heightCm, 2);
+    }
+
+    public static string GetWaistToHeightTileClass(decimal? ratio) => ratio switch
+    {
+        null => "card bg-light",
+        < 0.4m => "card wthr-tile wthr-tile-low text-white",
+        < 0.5m => "card wthr-tile wthr-tile-healthy text-white",
+        < 0.6m => "card wthr-tile wthr-tile-elevated text-dark",
+        _ => "card wthr-tile wthr-tile-high text-white"
+    };
+
+    public static string GetWaistToHeightTableCellClass(decimal? ratio) => ratio switch
+    {
+        null => string.Empty,
+        < 0.4m => "wthr-table-text-low",
+        < 0.5m => "wthr-table-text-healthy",
+        < 0.6m => "wthr-table-text-elevated",
+        _ => "wthr-table-text-high"
+    };
+
+    public static string GetGlucoseTileClass(decimal glucoseMmolL)
+    {
+        if (glucoseMmolL <= 0)
+        {
+            return "card bg-light";
+        }
+
+        return glucoseMmolL switch
+        {
+            < 4.0m => "card glucose-tile glucose-tile-hypo text-white",
+            <= 7.0m => "card glucose-tile glucose-tile-normal text-white",
+            _ => "card glucose-tile glucose-tile-hyper text-dark"
+        };
+    }
+
+    public static string GetGkiTileClass(decimal? gki) => gki switch
+    {
+        null => "card bg-light",
+        > 9.0m => "card bg-light",
+        >= 6.0m => "card gki-tile gki-tile-light-ketosis text-dark",
+        >= 3.0m => "card gki-tile gki-tile-moderate-ketosis text-white",
+        _ => "card gki-tile gki-tile-deep-ketosis text-white"
+    };
+
     public static string GetUnitDisplayName(FoodUnit unit) => unit switch
     {
         FoodUnit.Grams => "g",

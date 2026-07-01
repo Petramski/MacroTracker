@@ -39,9 +39,18 @@ public class MeasurementService
         {
             existing.WeightKg = measurement.WeightKg;
             existing.WaistCm = measurement.WaistCm;
+            existing.GlucoseMmolL = measurement.GlucoseMmolL;
+            existing.KetonesMmolL = measurement.KetonesMmolL;
             existing.UpdatedAt = DateTime.UtcNow;
         }
 
+        await _store.SaveAsync(measurements);
+    }
+
+    public async Task DeleteByDateAsync(DateOnly date)
+    {
+        var measurements = await _store.LoadAsync();
+        measurements.RemoveAll(m => m.Date == date);
         await _store.SaveAsync(measurements);
     }
 }

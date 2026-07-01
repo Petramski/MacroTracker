@@ -22,8 +22,13 @@
                     <input type="number" class="form-control" @bind="personalData.HeightCm"
                            @bind:after="OnHeightChanged" step="0.1" min="1" />
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button class="btn btn-primary" @onclick="Save">Opslaan</button>
+                <div class="col-md-4">
+                    <label class="form-label">Geboortedatum</label>
+                    <input type="date" class="form-control" value="@birthDateInput" @onchange="OnBirthDateChanged" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Leeftijd</label>
+                    <input type="text" class="form-control" value="@GetCalculatedAgeDisplay()" readonly />
                 </div>
             </div>
             <div class="mt-2">
@@ -45,27 +50,50 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">BMI</label>
-                    <input type="number" class="form-control" @bind="goalBmi" @bind:after="OnGoalBmiChanged" step="0.1"
+                    <input type="number" class="form-control" @bind="goalBmi" @bind:after="OnGoalBmiChanged" step="1"
                            min="0" />
-                    <small class="text-muted">Gewicht en BMI zijn gekoppeld op basis van lengte.</small>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-12">
+                    <small class="text-muted d-block text-start">Gewicht en BMI zijn gekoppeld op basis van
+                        lengte.</small>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
 @code {
     private PersonalData personalData = new();
     private decimal goalBmi;
+    private string birthDateInput = string.Empty;
     private GoalEditSource lastGoalEditSource = GoalEditSource.Weight;
 
     protected override async Task OnInitializedAsync()
     {
         personalData = await PersonalDataService.GetAsync();
+        birthDateInput = personalData.BirthDate?.ToString("yyyy-MM-dd") ?? string.Empty;
         InitializeGoalMetrics();
     }
 
-    private async Task Save()
+    private async Task OnBirthDateChanged(ChangeEventArgs args)
+    {
+        birthDateInput = args.Value?.ToString() ?? string.Empty;
+
+        if (DateOnly.TryParseExact(birthDateInput, "yyyy-MM-dd", out var birthDate))
+        {
+            personalData.BirthDate = birthDate;
+        }
+        else
+        {
+            personalData.BirthDate = null;
+        }
+
+        await SaveAsync();
+    }
+
+    private async Task SaveAsync()
     {
         if (personalData.HeightCm <= 0)
         {
@@ -77,61 +105,66 @@
         InitializeGoalMetrics();
     }
 
-    private void OnHeightChanged()
+    private async Task OnHeightChanged()
     {
         if (personalData.HeightCm <= 0)
         {
             goalBmi = 0;
+            await SaveAsync();
             return;
         }
 
         if (personalData.GoalWeightKg > 0)
         {
             goalBmi = CalculateBmiFromWeight(personalData.GoalWeightKg, personalData.HeightCm);
-            return;
         }
-
-        if (goalBmi > 0)
+        else if (goalBmi > 0)
         {
             personalData.GoalWeightKg = CalculateWeightFromBmi(goalBmi, personalData.HeightCm);
         }
+
+        await SaveAsync();
     }
 
-    private void OnGoalWeightChanged()
+    private async Task OnGoalWeightChanged()
     {
         lastGoalEditSource = GoalEditSource.Weight;
 
         if (personalData.HeightCm <= 0 || personalData.GoalWeightKg <= 0)
         {
             goalBmi = 0;
+            await SaveAsync();
             return;
         }
 
         goalBmi = CalculateBmiFromWeight(personalData.GoalWeightKg, personalData.HeightCm);
+        await SaveAsync();
     }
 
-    private void OnGoalBmiChanged()
+    private async Task OnGoalBmiChanged()
     {
         lastGoalEditSource = GoalEditSource.Bmi;
 
         if (personalData.HeightCm <= 0 || goalBmi <= 0)
         {
             personalData.GoalWeightKg = 0;
+            await SaveAsync();
             return;
         }
 
         personalData.GoalWeightKg = CalculateWeightFromBmi(goalBmi, personalData.HeightCm);
+        await SaveAsync();
     }
 
-    private void RecalculateByLastEditedField()
+    private async Task RecalculateByLastEditedField()
     {
         if (lastGoalEditSource == GoalEditSource.Bmi)
         {
-            OnGoalBmiChanged();
+            await OnGoalBmiChanged();
         }
         else
         {
-            OnGoalWeightChanged();
+            await OnGoalWeightChanged();
         }
     }
 
@@ -150,13 +183,31 @@
     private static decimal CalculateBmiFromWeight(decimal weightKg, decimal heightCm)
     {
         var heightMeters = heightCm / 100m;
-        return Math.Round(weightKg / (heightMeters * heightMeters), 2);
+        return Math.Round(weightKg / (heightMeters * heightMeters), 0);
     }
 
     private static decimal CalculateWeightFromBmi(decimal bmi, decimal heightCm)
     {
         var heightMeters = heightCm / 100m;
         return Math.Round(bmi * heightMeters * heightMeters, 1);
+    }
+
+    private string GetCalculatedAgeDisplay()
+    {
+        if (!personalData.BirthDate.HasValue)
+        {
+            return "-";
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var age = today.Year - personalData.BirthDate.Value.Year;
+
+        if (personalData.BirthDate.Value > today.AddYears(-age))
+        {
+            age--;
+        }
+
+        return age >= 0 ? age.ToString() : "-";
     }
 
     private enum GoalEditSource

@@ -11,6 +11,10 @@ public class DailyLogEntry
     public FoodUnit Unit { get; set; } = FoodUnit.Grams;
     public string? Meal { get; set; }
     public string? Notes { get; set; }
+    public decimal? LoggedCalories { get; set; }
+    public decimal? LoggedCarbs { get; set; }
+    public decimal? LoggedProtein { get; set; }
+    public decimal? LoggedFat { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

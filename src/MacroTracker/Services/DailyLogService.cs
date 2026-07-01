@@ -54,6 +54,13 @@ public class DailyLogService
         }
     }
 
+    public async Task DeleteByDateAsync(DateOnly date)
+    {
+        var entries = await _store.LoadAsync();
+        entries.RemoveAll(e => e.Date == date);
+        await _store.SaveAsync(entries);
+    }
+
     public async Task DeleteAsync(Guid id)
     {
         var entries = await _store.LoadAsync();

@@ -39,14 +39,24 @@
         </div>
         <div class="card-body">
             <div class="row">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Gewicht (kg)</label>
                     <input type="number" class="form-control" @bind="dailyMeasurement.WeightKg"
                            @bind:after="SaveMeasurement" step="0.1" min="0" />
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Tailleomtrek (cm)</label>
                     <input type="number" class="form-control" @bind="dailyMeasurement.WaistCm"
+                           @bind:after="SaveMeasurement" step="0.1" min="0" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Glucose (mmol/l)</label>
+                    <input type="number" class="form-control" @bind="dailyMeasurement.GlucoseMmolL"
+                           @bind:after="SaveMeasurement" step="0.1" min="0" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Ketonen (mmol/l)</label>
+                    <input type="number" class="form-control" @bind="dailyMeasurement.KetonesMmolL"
                            @bind:after="SaveMeasurement" step="0.1" min="0" />
                 </div>
             </div>
@@ -59,52 +69,71 @@
     }
     else
     {
-        <div class="row mb-4">
-            <div class="col-md-2">
-                <div class="card bg-light">
+        <div class="row mb-3 dailylog-summary-tiles g-3">
+            <div class="col-md-3">
+                <div class="card bg-light h-100">
                     <div class="card-body">
                         <h6 class="card-title">Energie</h6>
                         <h3>@MacroCalculator.FormatCalories(dayTotals.Calories) kcal</h3>
                     </div>
                 </div>
             </div>
-            <div class="col-md-2">
-                <div class="card bg-light">
+            <div class="col-md-3">
+                <div class="card bg-light h-100">
                     <div class="card-body">
                         <h6 class="card-title">Koolhydraten</h6>
                         <h3>@MacroCalculator.FormatMacro(dayTotals.Carbs)g</h3>
                     </div>
                 </div>
             </div>
-            <div class="col-md-2">
-                <div class="card bg-light">
+            <div class="col-md-3">
+                <div class="card bg-light h-100">
                     <div class="card-body">
                         <h6 class="card-title">Eiwit</h6>
                         <h3>@MacroCalculator.FormatMacro(dayTotals.Protein)g</h3>
                     </div>
                 </div>
             </div>
-            <div class="col-md-2">
-                <div class="card bg-light">
+            <div class="col-md-3">
+                <div class="card bg-light h-100">
                     <div class="card-body">
                         <h6 class="card-title">Vet</h6>
                         <h3>@MacroCalculator.FormatMacro(dayTotals.Fat)g</h3>
                     </div>
                 </div>
             </div>
-            <div class="col-md-2">
-                <div class="card bg-light">
+        </div>
+
+        <div class="row mb-4 dailylog-summary-tiles g-3">
+            <div class="col-md-3">
+                <div class="@MacroCalculator.GetBmiTileClass(GetBmiValue())">
                     <div class="card-body">
                         <h6 class="card-title">BMI</h6>
                         <h3>@GetBmiDisplay()</h3>
                     </div>
                 </div>
             </div>
-            <div class="col-md-2">
-                <div class="card bg-light">
+            <div class="col-md-3">
+                <div class="@MacroCalculator.GetWaistToHeightTileClass(GetWaistToHeightRatioValue())">
                     <div class="card-body">
                         <h6 class="card-title">Taille/lengte</h6>
                         <h3>@GetHeightToWaistRatioDisplay()</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="@MacroCalculator.GetGlucoseTileClass(dailyMeasurement.GlucoseMmolL)">
+                    <div class="card-body">
+                        <h6 class="card-title">Glucose</h6>
+                        <h3>@GetGlucoseDisplay()</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="@MacroCalculator.GetGkiTileClass(GetGkiValue())">
+                    <div class="card-body">
+                        <h6 class="card-title">GKI</h6>
+                        <h3>@GetGkiDisplay()</h3>
                     </div>
                 </div>
             </div>
@@ -132,7 +161,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var entry in entries)
+                        @foreach (var entry in entries
+                            .OrderBy(e => GetMealSortOrder(e.Meal))
+                            .ThenBy(e => e.CreatedAt))
                         {
                             var itemName = entry.FoodReferenceType == FoodReferenceType.Food
                                 ? (foods.FirstOrDefault(f => f.Id == entry.FoodItemId)?.Name ?? "Onbekend")
@@ -142,7 +173,7 @@
 
                             <tr>
                                 <td>@itemName</td>
-                                <td>@(entry.Meal ?? "-")</td>
+                                <td>@GetMealDisplay(entry.Meal)</td>
                                 <td>@entry.Amount @unitDisplay</td>
                                 <td>@MacroCalculator.FormatCalories(macros.Calories) kcal</td>
                                 <td>@MacroCalculator.FormatMacro(macros.Carbs)</td>
@@ -152,9 +183,16 @@
                                     <small>@(entry.Notes ?? "-")</small>
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm btn-warning" @onclick="() => EditEntry(entry)">Bewerken</button>
-                                    <button class="btn btn-sm btn-danger"
-                                            @onclick="() => DeleteEntry(entry.Id)">Verwijderen</button>
+                                    <button class="btn btn-sm btn-warning icon-action-btn" @onclick="() => EditEntry(entry)"
+                                            title="Bewerken">
+                                        <span aria-hidden="true">✎</span>
+                                        <span class="visually-hidden">Bewerken</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger icon-action-btn" @onclick="() => DeleteEntry(entry.Id)"
+                                            title="Verwijderen">
+                                        <span aria-hidden="true">🗑</span>
+                                        <span class="visually-hidden">Verwijderen</span>
+                                    </button>
                                 </td>
                             </tr>
                         }
@@ -230,8 +268,8 @@
                             <option value="">-- Overig --</option>
                             <option value="Breakfast">Ontbijt</option>
                             <option value="Lunch">Lunch</option>
-                            <option value="Dinner">Avondeten</option>
-                            <option value="Snack">Tussendoortje</option>
+                            <option value="Dinner">Diner</option>
+                            <option value="Snack">Snack</option>
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -288,6 +326,8 @@
                 Date = existingMeasurement.Date,
                 WeightKg = existingMeasurement.WeightKg,
                 WaistCm = existingMeasurement.WaistCm,
+                GlucoseMmolL = existingMeasurement.GlucoseMmolL,
+                KetonesMmolL = existingMeasurement.KetonesMmolL,
                 CreatedAt = existingMeasurement.CreatedAt,
                 UpdatedAt = existingMeasurement.UpdatedAt
             };
@@ -352,6 +392,12 @@
             return;
         }
 
+        var snapshotMacros = GetEntryMacros(editingEntry);
+        editingEntry.LoggedCalories = snapshotMacros.Calories;
+        editingEntry.LoggedCarbs = snapshotMacros.Carbs;
+        editingEntry.LoggedProtein = snapshotMacros.Protein;
+        editingEntry.LoggedFat = snapshotMacros.Fat;
+
         if (editingEntry.Id == Guid.Empty)
         {
             await DailyLogService.AddAsync(editingEntry);
@@ -395,7 +441,10 @@
 
     private async Task SaveMeasurement()
     {
-        if (dailyMeasurement.WeightKg <= 0 && dailyMeasurement.WaistCm <= 0)
+        if (dailyMeasurement.WeightKg <= 0 &&
+            dailyMeasurement.WaistCm <= 0 &&
+            dailyMeasurement.GlucoseMmolL <= 0 &&
+            dailyMeasurement.KetonesMmolL <= 0)
         {
             return;
         }
@@ -404,27 +453,49 @@
         await MeasurementService.UpsertByDateAsync(dailyMeasurement);
     }
 
+    private decimal? GetBmiValue()
+    {
+        return MacroCalculator.CalculateBmi(dailyMeasurement.WeightKg, personalData.HeightCm);
+    }
+
     private string GetBmiDisplay()
     {
-        if (personalData.HeightCm <= 0 || dailyMeasurement.WeightKg <= 0)
-        {
-            return "-";
-        }
-
-        var heightMeters = personalData.HeightCm / 100m;
-        var bmi = dailyMeasurement.WeightKg / (heightMeters * heightMeters);
-        return $"{bmi:0.00}";
+        var bmi = GetBmiValue();
+        return bmi.HasValue ? $"{bmi.Value:0.00}" : "-";
     }
 
     private string GetHeightToWaistRatioDisplay()
     {
-        if (personalData.HeightCm <= 0 || dailyMeasurement.WaistCm <= 0)
+        var ratio = GetWaistToHeightRatioValue();
+        return ratio.HasValue ? $"{ratio.Value:0.00}" : "-";
+    }
+
+    private decimal? GetWaistToHeightRatioValue()
+    {
+        return MacroCalculator.CalculateWaistToHeightRatio(dailyMeasurement.WaistCm, personalData.HeightCm);
+    }
+
+    private string GetGlucoseDisplay()
+    {
+        return dailyMeasurement.GlucoseMmolL > 0
+            ? $"{dailyMeasurement.GlucoseMmolL:0.0} mmol/l"
+            : "-";
+    }
+
+    private decimal? GetGkiValue()
+    {
+        if (dailyMeasurement.GlucoseMmolL <= 0 || dailyMeasurement.KetonesMmolL <= 0)
         {
-            return "-";
+            return null;
         }
 
-        var ratio = dailyMeasurement.WaistCm / personalData.HeightCm;
-        return $"{ratio:0.00}";
+        return Math.Round(dailyMeasurement.GlucoseMmolL / dailyMeasurement.KetonesMmolL, 2);
+    }
+
+    private string GetGkiDisplay()
+    {
+        var gki = GetGkiValue();
+        return gki.HasValue ? gki.Value.ToString("0.00") : "-";
     }
 
     private void OnItemSelected(ChangeEventArgs e)
@@ -454,8 +525,58 @@
         }
     }
 
+    private static string GetMealDisplay(string? meal)
+    {
+        if (string.IsNullOrWhiteSpace(meal))
+        {
+            return "Overig";
+        }
+
+        return meal switch
+        {
+            "Breakfast" => "Ontbijt",
+            "Lunch" => "Lunch",
+            "Dinner" => "Diner",
+            "Snack" => "Snack",
+            "Avondeten" => "Diner",
+            "Tussendoortje" => "Snack",
+            _ => meal
+        };
+    }
+
+    private static int GetMealSortOrder(string? meal)
+    {
+        if (string.IsNullOrWhiteSpace(meal))
+        {
+            return 99;
+        }
+
+        return meal switch
+        {
+            "Breakfast" or "Ontbijt" => 1,
+            "Lunch" => 2,
+            "Dinner" or "Diner" or "Avondeten" => 3,
+            "Snack" or "Tussendoortje" => 4,
+            _ => 99
+        };
+    }
+
     private MacroTotals GetEntryMacros(DailyLogEntry entry)
     {
+        if (entry.LoggedCalories.HasValue &&
+            entry.LoggedCarbs.HasValue &&
+            entry.LoggedProtein.HasValue &&
+            entry.LoggedFat.HasValue)
+        {
+            return new MacroTotals
+            {
+                Calories = entry.LoggedCalories.Value,
+                Carbs = entry.LoggedCarbs.Value,
+                Protein = entry.LoggedProtein.Value,
+                Fat = entry.LoggedFat.Value
+            };
+        }
+
         if (entry.FoodReferenceType == FoodReferenceType.Food && entry.FoodItemId.HasValue)
         {
             var food = foods?.FirstOrDefault(f => f.Id == entry.FoodItemId.Value);

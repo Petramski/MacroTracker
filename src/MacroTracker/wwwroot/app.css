@@ -78,3 +78,169 @@ h1:focus {
     background-color: #bb2d3b;
     border-color: #b02a37;
 }
+
+.icon-action-btn {
+    min-width: 2.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.action-column {
+    width: 7rem;
+    white-space: nowrap;
+}
+
+.today-summary-tiles .card-body h3,
+.dailylog-summary-tiles .card-body h3 {
+    font-size: 1.45rem;
+    font-weight: 700;
+}
+
+.bmi-tile {
+    border: 0;
+}
+
+.bmi-tile .card-body {
+    border-radius: inherit;
+}
+
+.bmi-tile-underweight {
+    background-color: #dc3545;
+}
+
+.bmi-tile-healthy {
+    background-color: #198754;
+}
+
+.bmi-tile-overweight-1 {
+    background-color: #fd7e14;
+}
+
+.bmi-tile-overweight-2 {
+    background-color: #c82333;
+}
+
+.bmi-tile-overweight-3 {
+    background-color: #7f1d1d;
+}
+
+.wthr-tile {
+    border: 0;
+}
+
+.wthr-tile .card-body {
+    border-radius: inherit;
+}
+
+.wthr-tile-low {
+    background-color: #dc3545;
+}
+
+.wthr-tile-healthy {
+    background-color: #198754;
+}
+
+.wthr-tile-elevated {
+    background-color: #fd7e14;
+}
+
+.wthr-tile-high {
+    background-color: #7f1d1d;
+}
+
+.glucose-tile {
+    border: 0;
+}
+
+.glucose-tile .card-body {
+    border-radius: inherit;
+}
+
+.glucose-tile-hypo {
+    background-color: #dc3545;
+}
+
+.glucose-tile-normal {
+    background-color: #198754;
+}
+
+.glucose-tile-hyper {
+    background-color: #fd7e14;
+}
+
+.gki-tile {
+    border: 0;
+}
+
+.gki-tile .card-body {
+    border-radius: inherit;
+}
+
+.gki-tile-light-ketosis {
+    background-color: #8fd19e;
+}
+
+.gki-tile-moderate-ketosis {
+    background-color: #198754;
+}
+
+.gki-tile-deep-ketosis {
+    background-color: #0f5132;
+}
+
+.bmi-tile-underweight,
+.bmi-tile-healthy,
+.bmi-tile-overweight-1,
+.bmi-tile-overweight-2,
+.bmi-tile-overweight-3,
+.wthr-tile-low,
+.wthr-tile-healthy,
+.wthr-tile-elevated,
+.wthr-tile-high,
+.glucose-tile-hypo,
+.glucose-tile-normal,
+.glucose-tile-hyper,
+.gki-tile-light-ketosis,
+.gki-tile-moderate-ketosis,
+.gki-tile-deep-ketosis {
+    padding: 0;
+}
+
+.bmi-table-text-underweight {
+    color: #dc3545 !important;
+}
+
+.bmi-table-text-healthy {
+    color: #198754 !important;
+}
+
+.bmi-table-text-overweight-1 {
+    color: #fd7e14 !important;
+}
+
+.bmi-table-text-overweight-2 {
+    color: #c82333 !important;
+}
+
+.bmi-table-text-overweight-3 {
+    color: #7f1d1d !important;
+}
+
+.wthr-table-text-low {
+    color: #dc3545 !important;
+}
+
+.wthr-table-text-healthy {
+    color: #198754 !important;
+}
+
+.wthr-table-text-elevated {
+    color: #fd7e14 !important;
+}
+
+.wthr-table-text-high {
+    color: #7f1d1d !important;
+}

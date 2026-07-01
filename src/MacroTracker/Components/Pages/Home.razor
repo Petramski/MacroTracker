@@ -22,8 +22,8 @@
     }
     else
     {
-        <div class="row mb-4">
-            <div class="col-md-2">
+        <div class="row mb-3 today-summary-tiles g-3">
+            <div class="col-md-3">
                 <div class="card bg-light">
                     <div class="card-body">
                         <h6 class="card-title">Energie</h6>
@@ -31,7 +31,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <div class="card bg-light">
                     <div class="card-body">
                         <h6 class="card-title">Koolhydraten</h6>
@@ -39,7 +39,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <div class="card bg-light">
                     <div class="card-body">
                         <h6 class="card-title">Eiwit</h6>
@@ -47,7 +47,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <div class="card bg-light">
                     <div class="card-body">
                         <h6 class="card-title">Vet</h6>
@@ -55,19 +55,38 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-2">
-                <div class="card bg-light">
+        </div>
+
+        <div class="row mb-4 today-summary-tiles g-3">
+            <div class="col-md-3">
+                <div class="@MacroCalculator.GetBmiTileClass(GetBmiValue())">
                     <div class="card-body">
                         <h6 class="card-title">BMI</h6>
                         <h3>@GetBmiDisplay()</h3>
                     </div>
                 </div>
             </div>
-            <div class="col-md-2">
-                <div class="card bg-light">
+            <div class="col-md-3">
+                <div class="@MacroCalculator.GetWaistToHeightTileClass(GetWaistToHeightRatioValue())">
                     <div class="card-body">
                         <h6 class="card-title">Taille/lengte</h6>
                         <h3>@GetHeightToWaistRatioDisplay()</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="@MacroCalculator.GetGlucoseTileClass(todayMeasurement.GlucoseMmolL)">
+                    <div class="card-body">
+                        <h6 class="card-title">Glucose</h6>
+                        <h3>@GetGlucoseDisplay()</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="@MacroCalculator.GetGkiTileClass(GetGkiValue())">
+                    <div class="card-body">
+                        <h6 class="card-title">GKI</h6>
+                        <h3>@GetGkiDisplay()</h3>
                     </div>
                 </div>
             </div>
@@ -178,30 +197,53 @@
                 return MacroCalculator.CalculateFromFood(food, entry.Amount, entry.Unit);
             }
         }
+
         return new MacroTotals();
+    }
+
+    private decimal? GetBmiValue()
+    {
+        return MacroCalculator.CalculateBmi(todayMeasurement.WeightKg, personalData.HeightCm);
     }
 
     private string GetBmiDisplay()
     {
-        if (personalData.HeightCm <= 0 || todayMeasurement.WeightKg <= 0)
-        {
-            return "-";
-        }
-
-        var heightMeters = personalData.HeightCm / 100m;
-        var bmi = todayMeasurement.WeightKg / (heightMeters * heightMeters);
-        return $"{bmi:0.00}";
+        var bmi = GetBmiValue();
+        return bmi.HasValue ? $"{bmi.Value:0.00}" : "-";
     }
 
     private string GetHeightToWaistRatioDisplay()
     {
-        if (personalData.HeightCm <= 0 || todayMeasurement.WaistCm <= 0)
+        var ratio = GetWaistToHeightRatioValue();
+        return ratio.HasValue ? $"{ratio.Value:0.00}" : "-";
+    }
+
+    private decimal? GetWaistToHeightRatioValue()
+    {
+        return MacroCalculator.CalculateWaistToHeightRatio(todayMeasurement.WaistCm, personalData.HeightCm);
+    }
+
+    private string GetGlucoseDisplay()
+    {
+        return todayMeasurement.GlucoseMmolL > 0
+            ? $"{todayMeasurement.GlucoseMmolL:0.0} mmol/l"
+            : "-";
+    }
+
+    private decimal? GetGkiValue()
+    {
+        if (todayMeasurement.GlucoseMmolL <= 0 || todayMeasurement.KetonesMmolL <= 0)
         {
-            return "-";
+            return null;
         }
 
-        var ratio = todayMeasurement.WaistCm / personalData.HeightCm;
-        return $"{ratio:0.00}";
+        return Math.Round(todayMeasurement.GlucoseMmolL / todayMeasurement.KetonesMmolL, 2);
+    }
+
+    private string GetGkiDisplay()
+    {
+        var gki = GetGkiValue();
+        return gki.HasValue ? gki.Value.ToString("0.00") : "-";
     }
 
     private static string GetMealDisplayName(string? meal) => meal switch

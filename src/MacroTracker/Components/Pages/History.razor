@@ -1,9 +1,11 @@
 @page "/history"
 @inject DailyLogService DailyLogService
 @inject MeasurementService MeasurementService
+@inject PersonalDataService PersonalDataService
 @inject FoodService FoodService
 @inject RecipeService RecipeService
 @inject MacroCalculator MacroCalculator
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Geschiedenis - MacroTracker</PageTitle>
 
@@ -17,11 +19,13 @@
     <div class="row mb-3">
         <div class="col-md-3">
             <label class="form-label">Van datum</label>
-            <input type="date" class="form-control" value="@startDate.ToString("yyyy-MM-dd")" @onchange="OnStartDateChanged" />
+            <input type="date" class="form-control" value="@startDate.ToString("yyyy-MM-dd")"
+                   @onchange="OnStartDateChanged" />
         </div>
         <div class="col-md-3">
             <label class="form-label">Tot datum</label>
-            <input type="date" class="form-control" value="@endDate.ToString("yyyy-MM-dd")" @onchange="OnEndDateChanged" />
+            <input type="date" class="form-control" value="@endDate.ToString("yyyy-MM-dd")"
+                   @onchange="OnEndDateChanged" />
         </div>
     </div>
 
@@ -35,10 +39,21 @@
     }
     else
     {
+        <div class="d-flex justify-content-end mb-2">
+            <button class="btn btn-outline-danger" @onclick="DeleteSelectedAsync"
+                    disabled="@(GetSelectedVisibleDates().Count == 0)">
+                Verwijder
+            </button>
+        </div>
+
         <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead>
                     <tr>
+                        <th style="width: 1rem;">
+                            <input class="form-check-input" type="checkbox" checked="@IsAllVisibleSelected"
+                                   @onchange="ToggleAllVisibleSelections" />
+                        </th>
                         <th>Datum</th>
                         <th>Energie (kcal)</th>
                         <th>Koolhydraten (g)</th>
@@ -46,121 +61,135 @@
                         <th>Vet (g)</th>
                         <th>Gewicht (kg)</th>
                         <th>Taille (cm)</th>
+                        <th>BMI</th>
+                        <th>Taille/lengte</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var date in filteredDates)
                     {
                         var dayEntries = filteredEntries.Where(e => e.Date == date).ToList();
-                        var dayMacros = CalculateDayTotals(dayEntries);
+                        dayTotalsByDate.TryGetValue(date, out var dayMacros);
+                        dayMacros ??= new MacroTotals();
                         measurementsByDate.TryGetValue(date, out var measurement);
+                        var bmi = GetBmiValue(measurement);
+                        var ratio = GetWaistToHeightRatioValue(measurement);
                         <tr>
-                            <td>@date.ToString("dddd, MMMM d, yyyy")</td>
+                            <td>
+                                <input class="form-check-input" type="checkbox" checked="@selectedDates.Contains(date)"
+                                       @onchange="e => ToggleDateSelection(e, date)" />
+                            </td>
+                            <td>@date.ToString("dd-MM-yyyy")</td>
                             <td>@MacroCalculator.FormatCalories(dayMacros.Calories) kcal</td>
                             <td>@MacroCalculator.FormatMacro(dayMacros.Carbs)</td>
                             <td>@MacroCalculator.FormatMacro(dayMacros.Protein)</td>
                             <td>@MacroCalculator.FormatMacro(dayMacros.Fat)</td>
                             <td>@(measurement?.WeightKg > 0 ? MacroCalculator.FormatMacro(measurement.WeightKg) : "-")</td>
                             <td>@(measurement?.WaistCm > 0 ? MacroCalculator.FormatMacro(measurement.WaistCm) : "-")</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-
-        <div class="row mt-4">
-            <div class="col">
-                <h5>Samenvatting van geselecteerde periode</h5>
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h6 class="card-title">Gem. dagelijkse energie</h6>
-                                <h4>@MacroCalculator.FormatCalories(periodAverageTotals.Calories) kcal</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h6 class="card-title">Gem. dagelijkse koolhydraten</h6>
-                                <h4>@MacroCalculator.FormatMacro(periodAverageTotals.Carbs)g</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h6 class="card-title">Gem. dagelijks eiwit</h6>
-                                <h4>@MacroCalculator.FormatMacro(periodAverageTotals.Protein)g</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h6 class="card-title">Gem. dagelijks vet</h6>
-                                <h4>@MacroCalculator.FormatMacro(periodAverageTotals.Fat)g</h4>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row mt-3">
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h6 class="card-title">Totale energie in periode</h6>
-                                <h4>@MacroCalculator.FormatCalories(periodTotalTotals.Calories) kcal</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h6 class="card-title">Totale koolhydraten in periode</h6>
-                                <h4>@MacroCalculator.FormatMacro(periodTotalTotals.Carbs)g</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h6 class="card-title">Totaal eiwit in periode</h6>
-                                <h4>@MacroCalculator.FormatMacro(periodTotalTotals.Protein)g</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h6 class="card-title">Totaal vet in periode</h6>
-                                <h4>@MacroCalculator.FormatMacro(periodTotalTotals.Fat)g</h4>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-3">
-                    <p class="text-muted">
-                        <small>Dagen met voedselinvoer: @filteredEntries.GroupBy(e => e.Date).Count() | Dagen met metingen: @allMeasurements.Count(m => m.Date >= startDate && m.Date <= endDate)</small>
-                    </p>
-                </div>
+                            <td class="@MacroCalculator.GetBmiTableCellClass(bmi)">@GetBmiDisplay(bmi)</td>
+                            <td class="@MacroCalculator.GetWaistToHeightTableCellClass(ratio)">
+                                @GetWaistToHeightRatioDisplay(ratio)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
+
+            <div class="row mt-4">
+                <div class="col">
+                    <h5>Samenvatting van geselecteerde periode</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">Gem. dagelijkse energie</h6>
+                                    <h4>@MacroCalculator.FormatCalories(periodAverageTotals.Calories) kcal</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">Gem. dagelijkse koolhydraten</h6>
+                                    <h4>@MacroCalculator.FormatMacro(periodAverageTotals.Carbs)g</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">Gem. dagelijks eiwit</h6>
+                                    <h4>@MacroCalculator.FormatMacro(periodAverageTotals.Protein)g</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">Gem. dagelijks vet</h6>
+                                    <h4>@MacroCalculator.FormatMacro(periodAverageTotals.Fat)g</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">Totale energie in periode</h6>
+                                    <h4>@MacroCalculator.FormatCalories(periodTotalTotals.Calories) kcal</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">Totale koolhydraten in periode</h6>
+                                    <h4>@MacroCalculator.FormatMacro(periodTotalTotals.Carbs)g</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">Totaal eiwit in periode</h6>
+                                    <h4>@MacroCalculator.FormatMacro(periodTotalTotals.Protein)g</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">Totaal vet in periode</h6>
+                                    <h4>@MacroCalculator.FormatMacro(periodTotalTotals.Fat)g</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <p class="text-muted">
+                            <small>Dagen met voedselinvoer: @filteredEntries.GroupBy(e => e.Date).Count() | Dagen met metingen:
+                                @allMeasurements.Count(m => m.Date >= startDate && m.Date <= endDate)</small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
-    }
-</div>
 
 @code {
     private DateOnly startDate;
     private DateOnly endDate;
     private List<DailyLogEntry> allEntries = new();
     private List<DailyLogEntry> filteredEntries = new();
-    private List<FoodItem> foods = new();
-    private List<Recipe> recipes = new();
     private List<DailyMeasurement> allMeasurements = new();
     private Dictionary<DateOnly, DailyMeasurement> measurementsByDate = new();
+    private Dictionary<DateOnly, MacroTotals> dayTotalsByDate = new();
     private List<DateOnly> filteredDates = new();
+    private readonly HashSet<DateOnly> selectedDates = new();
+    private PersonalData personalData = new();
     private MacroTotals periodAverageTotals = new();
     private MacroTotals periodTotalTotals = new();
 
@@ -175,17 +204,16 @@
     private async Task LoadData()
     {
         allEntries = await DailyLogService.GetAllAsync();
-        foods = await FoodService.GetAllAsync();
-        recipes = await RecipeService.GetAllAsync();
         allMeasurements = await MeasurementService.GetAllAsync();
+        personalData = await PersonalDataService.GetAsync();
         measurementsByDate = allMeasurements
             .GroupBy(m => m.Date)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(m => m.UpdatedAt).First());
 
-        FilterAndCalculate();
+        await FilterAndCalculateAsync();
     }
 
-    private void FilterAndCalculate()
+    private async Task FilterAndCalculateAsync()
     {
         filteredEntries = allEntries.Where(e => e.Date >= startDate && e.Date <= endDate).ToList();
         var filteredMeasurementDates = allMeasurements
@@ -199,6 +227,7 @@
             .ToList();
 
         var groupedByDay = filteredEntries.GroupBy(e => e.Date).ToList();
+        dayTotalsByDate = new Dictionary<DateOnly, MacroTotals>();
 
         if (groupedByDay.Count == 0)
         {
@@ -210,7 +239,8 @@
         periodTotalTotals = new MacroTotals();
         foreach (var dayGroup in groupedByDay)
         {
-            var dayMacros = CalculateDayTotals(dayGroup.ToList());
+            var dayMacros = await CalculateDayTotalsAsync(dayGroup.ToList());
+            dayTotalsByDate[dayGroup.Key] = dayMacros;
             periodTotalTotals.Calories += dayMacros.Calories;
             periodTotalTotals.Carbs += dayMacros.Carbs;
             periodTotalTotals.Protein += dayMacros.Protein;
@@ -227,42 +257,157 @@
         };
     }
 
-    private MacroTotals CalculateDayTotals(List<DailyLogEntry> dayEntries)
+    private bool IsAllVisibleSelected => filteredDates.Count > 0 && filteredDates.All(selectedDates.Contains);
+
+    private List<DateOnly> GetSelectedVisibleDates()
+    {
+        return filteredDates.Where(selectedDates.Contains).OrderBy(date => date).ToList();
+    }
+
+    private void ToggleAllVisibleSelections(ChangeEventArgs e)
+    {
+        var isChecked = e.Value is bool value && value;
+
+        foreach (var date in filteredDates)
+        {
+            if (isChecked)
+            {
+                selectedDates.Add(date);
+            }
+            else
+            {
+                selectedDates.Remove(date);
+            }
+        }
+    }
+
+    private void ToggleDateSelection(ChangeEventArgs e, DateOnly date)
+    {
+        var isChecked = e.Value is bool value && value;
+
+        if (isChecked)
+        {
+            selectedDates.Add(date);
+        }
+        else
+        {
+            selectedDates.Remove(date);
+        }
+    }
+
+    private async Task DeleteSelectedAsync()
+    {
+        var datesToDelete = GetSelectedVisibleDates();
+        if (datesToDelete.Count == 0)
+        {
+            return;
+        }
+
+        var dateList = string.Join(", ", datesToDelete.Select(date => date.ToString("d")));
+        var confirmed = await JSRuntime.InvokeAsync<bool>(
+            "confirm",
+            $"Waarschuwing: je staat op het punt {datesToDelete.Count} geselecteerde geschiedenisregel(s) te verwijderen voor: {dateList}. Dit verwijdert alle invoer en metingen voor deze datums. Deze actie is onomkeerbaar. Doorgaan?");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        foreach (var date in datesToDelete)
+        {
+            await DailyLogService.DeleteByDateAsync(date);
+            await MeasurementService.DeleteByDateAsync(date);
+            selectedDates.Remove(date);
+        }
+
+        await LoadData();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task<MacroTotals> CalculateDayTotalsAsync(List<DailyLogEntry> dayEntries)
     {
         var totals = new MacroTotals();
         foreach (var entry in dayEntries)
         {
-            if (entry.FoodReferenceType == FoodReferenceType.Food && entry.FoodItemId.HasValue)
+            MacroTotals macros;
+
+            if (entry.LoggedCalories.HasValue &&
+                entry.LoggedCarbs.HasValue &&
+                entry.LoggedProtein.HasValue &&
+                entry.LoggedFat.HasValue)
             {
-                var food = foods?.FirstOrDefault(f => f.Id == entry.FoodItemId.Value);
-                if (food != null)
+                macros = new MacroTotals
                 {
-                    var macros = MacroCalculator.CalculateFromFood(food, entry.Amount, entry.Unit);
-                    totals.Calories += macros.Calories;
-                    totals.Carbs += macros.Carbs;
-                    totals.Protein += macros.Protein;
-                    totals.Fat += macros.Fat;
-                }
+                    Calories = entry.LoggedCalories.Value,
+                    Carbs = entry.LoggedCarbs.Value,
+                    Protein = entry.LoggedProtein.Value,
+                    Fat = entry.LoggedFat.Value
+                };
             }
+            else
+            {
+                macros = await MacroCalculator.CalculateForEntryAsync(entry);
+                entry.LoggedCalories = macros.Calories;
+                entry.LoggedCarbs = macros.Carbs;
+                entry.LoggedProtein = macros.Protein;
+                entry.LoggedFat = macros.Fat;
+                await DailyLogService.UpdateAsync(entry);
+            }
+
+            totals.Calories += macros.Calories;
+            totals.Carbs += macros.Carbs;
+            totals.Protein += macros.Protein;
+            totals.Fat += macros.Fat;
         }
+
         return totals;
     }
 
-    private void OnStartDateChanged(ChangeEventArgs e)
+    private decimal? GetBmiValue(DailyMeasurement? measurement)
+    {
+        if (measurement == null)
+        {
+            return null;
+        }
+
+        return MacroCalculator.CalculateBmi(measurement.WeightKg, personalData.HeightCm);
+    }
+
+    private string GetBmiDisplay(decimal? bmi)
+    {
+        return bmi.HasValue ? $"{bmi.Value:0.00}" : "-";
+    }
+
+    private decimal? GetWaistToHeightRatioValue(DailyMeasurement? measurement)
+    {
+        if (measurement == null)
+        {
+            return null;
+        }
+
+        return MacroCalculator.CalculateWaistToHeightRatio(measurement.WaistCm, personalData.HeightCm);
+    }
+
+    private string GetWaistToHeightRatioDisplay(decimal? ratio)
+    {
+        return ratio.HasValue ? $"{ratio.Value:0.00}" : "-";
+    }
+
+    private async Task OnStartDateChanged(ChangeEventArgs e)
     {
         if (DateTime.TryParse((string?)e.Value, out var date))
         {
             startDate = DateOnly.FromDateTime(date);
-            FilterAndCalculate();
+            await FilterAndCalculateAsync();
         }
     }
 
-    private void OnEndDateChanged(ChangeEventArgs e)
+    private async Task OnEndDateChanged(ChangeEventArgs e)
     {
         if (DateTime.TryParse((string?)e.Value, out var date))
         {
             endDate = DateOnly.FromDateTime(date);
-            FilterAndCalculate();
+            await FilterAndCalculateAsync();
         }
     }
 }

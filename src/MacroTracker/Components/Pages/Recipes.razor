@@ -50,8 +50,16 @@
                                         F: @MacroCalculator.FormatMacro(recipeMacros.Fat)g
                                     </small>
                                 </p>
-                                <button class="btn btn-sm btn-warning" @onclick="() => EditRecipe(recipe)">Bewerken</button>
-                                <button class="btn btn-sm btn-danger" @onclick="() => DeleteRecipe(recipe.Id)">Verwijderen</button>
+                                <button class="btn btn-sm btn-warning icon-action-btn" @onclick="() => EditRecipe(recipe)"
+                                        title="Bewerken">
+                                    <span aria-hidden="true">✎</span>
+                                    <span class="visually-hidden">Bewerken</span>
+                                </button>
+                                <button class="btn btn-sm btn-danger icon-action-btn" @onclick="() => DeleteRecipe(recipe.Id)"
+                                        title="Verwijderen">
+                                    <span aria-hidden="true">🗑</span>
+                                    <span class="visually-hidden">Verwijderen</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -113,8 +121,9 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var (ingredient, index) in editingRecipe.Ingredients.Select((i, idx) => (i, idx)))
+                                @for (var index = 0; index < editingRecipe.Ingredients.Count; index++)
                                 {
+                                    var ingredient = editingRecipe.Ingredients[index];
                                     var ingredientName = GetIngredientDisplayName(ingredient);
                                     <tr>
                                         <td>
@@ -129,8 +138,11 @@
                                         </td>
                                         <td>@ingredient.AmountGrams</td>
                                         <td>
-                                            <button class="btn btn-sm btn-danger"
-                                                    @onclick="() => RemoveIngredient(index)">Verwijderen</button>
+                                            <button class="btn btn-sm btn-danger icon-action-btn"
+                                                    @onclick="() => RemoveIngredient(index)" title="Verwijderen">
+                                                <span aria-hidden="true">🗑</span>
+                                                <span class="visually-hidden">Verwijderen</span>
+                                            </button>
                                         </td>
                                     </tr>
                                 }
